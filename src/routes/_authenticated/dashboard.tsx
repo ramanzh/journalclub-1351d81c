@@ -29,10 +29,10 @@ function DashboardPage() {
   const s = computeStats(trades);
 
   const cards = [
-    { label: "تعداد کل معاملات", value: s.total, decimals: 0, Icon: Target, color: "text-chart-3" },
+    { label: "تعداد کل معاملات", value: s.total, decimals: 0, Icon: Target, color: "text-foreground" },
     { label: "نرخ برد", value: s.winRate, decimals: 1, suffix: "٪", Icon: Percent, color: "text-primary" },
     { label: "میانگین R:R", value: s.avgRR, decimals: 2, Icon: TrendingUp, color: "text-warning" },
-    { label: "معاملات بسته شده", value: s.closed, decimals: 0, Icon: BarChart3, color: "text-chart-5" },
+    { label: "معاملات بسته شده", value: s.closed, decimals: 0, Icon: BarChart3, color: "text-foreground" },
   ];
 
   return (
@@ -71,22 +71,22 @@ function DashboardPage() {
                 <div style={{ width: "100%", height: 280 }}>
                   <ResponsiveContainer>
                     <BarChart data={s.monthly} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.025 252)" />
-                      <XAxis dataKey="month" stroke="oklch(0.66 0.03 250)" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="oklch(0.66 0.03 250)" fontSize={12} tickLine={false} axisLine={false} width={50} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} width={50} />
                       <Tooltip
-                        cursor={{ fill: "oklch(0.30 0.04 255 / 0.3)" }}
+                        cursor={{ fill: "var(--accent)", opacity: 0.3 }}
                         contentStyle={{
-                          background: "oklch(0.21 0.025 252)",
-                          border: "1px solid oklch(0.28 0.025 252)",
+                          background: "var(--card)",
+                          border: "1px solid var(--border)",
                           borderRadius: 8,
-                          color: "oklch(0.96 0.01 250)",
+                          color: "var(--foreground)",
                         }}
                         formatter={(v: number) => [formatNumber(v, 2), "سود/زیان"]}
                       />
                       <Bar dataKey="pl" radius={[8, 8, 0, 0]}>
                         {s.monthly.map((m, i) => (
-                          <Cell key={i} fill={m.pl >= 0 ? "oklch(0.72 0.17 165)" : "oklch(0.65 0.22 25)"} />
+                          <Cell key={i} fill={m.pl >= 0 ? "var(--primary)" : "var(--destructive)"} />
                         ))}
                       </Bar>
                     </BarChart>
