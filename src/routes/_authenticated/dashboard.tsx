@@ -3,12 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { computeStats, formatNumber, type Trade } from "@/lib/trade-utils";
-import { TrendingUp, TrendingDown, Target, Percent, ArrowLeft } from "lucide-react";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { Loader2 } from "lucide-react";
+import { TrendingUp, Target, Percent, ArrowLeft, Loader2, BarChart3 } from "lucide-react";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
+import { CountUp } from "@/components/count-up";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "داشبورد | ژورنال معاملاتی" }] }),
+  head: () => ({ meta: [{ title: "داشبورد | ژورنال کلاب" }] }),
   component: DashboardPage,
 });
 
@@ -29,15 +29,10 @@ function DashboardPage() {
   const s = computeStats(trades);
 
   const cards = [
-    { label: "تعداد کل معاملات", value: formatNumber(s.total, 0), Icon: Target, color: "text-chart-3" },
-    { label: "نرخ برد", value: `${formatNumber(s.winRate, 1)}٪`, Icon: Percent, color: "text-primary" },
-    { label: "میانگین R:R", value: formatNumber(s.avgRR, 2), Icon: TrendingUp, color: "text-warning" },
-    {
-      label: "سود/زیان کل",
-      value: formatNumber(s.totalPL, 2),
-      Icon: s.totalPL >= 0 ? TrendingUp : TrendingDown,
-      color: s.totalPL >= 0 ? "text-primary" : "text-destructive",
-    },
+    { label: "تعداد کل معاملات", value: s.total, decimals: 0, Icon: Target, color: "text-chart-3" },
+    { label: "نرخ برد", value: s.winRate, decimals: 1, suffix: "٪", Icon: Percent, color: "text-primary" },
+    { label: "میانگین R:R", value: s.avgRR, decimals: 2, Icon: TrendingUp, color: "text-warning" },
+    { label: "معاملات بسته شده", value: s.closed, decimals: 0, Icon: BarChart3, color: "text-chart-5" },
   ];
 
   return (
@@ -47,40 +42,51 @@ function DashboardPage() {
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {cards.map(({ label, value, Icon, color }) => (
-              <div key={label} className="gradient-card rounded-2xl border border-border/60 p-5">
+            {cards.map(({ label, value, decimals, suffix, Icon, color }, i) => (
+              <div
+                key={label}
+                className="gradient-card rounded-2xl border border-border/60 p-5 animate-fade-in opacity-0"
+                style={{ animationDelay: `${i * 80}ms`, animationFillMode: "forwards" }}
+              >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs text-muted-foreground">{label}</span>
                   <Icon className={`size-4 ${color}`} />
                 </div>
-                <div className={`text-2xl font-bold num ${color}`}>{value}</div>
+                <div className={`text-2xl font-bold num ${color}`}>
+                  <CountUp value={value} decimals={decimals} suffix={suffix ?? ""} />
+                </div>
               </div>
             ))}
           </div>
 
           <div className="grid lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 gradient-card rounded-2xl border border-border/60 p-5">
+            <div
+              className="lg:col-span-2 gradient-card rounded-2xl border border-border/60 p-5 animate-fade-in opacity-0"
+              style={{ animationDelay: "320ms", animationFillMode: "forwards" }}
+            >
               <h3 className="font-semibold mb-4">عملکرد ماهانه</h3>
               {s.monthly.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-12">هنوز داده‌ای وجود ندارد.</p>
               ) : (
                 <div style={{ width: "100%", height: 280 }}>
                   <ResponsiveContainer>
-                    <BarChart data={s.monthly}>
+                    <BarChart data={s.monthly} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.025 252)" />
-                      <XAxis dataKey="month" stroke="oklch(0.66 0.03 250)" fontSize={12} />
-                      <YAxis stroke="oklch(0.66 0.03 250)" fontSize={12} />
+                      <XAxis dataKey="month" stroke="oklch(0.66 0.03 250)" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="oklch(0.66 0.03 250)" fontSize={12} tickLine={false} axisLine={false} width={50} />
                       <Tooltip
+                        cursor={{ fill: "oklch(0.30 0.04 255 / 0.3)" }}
                         contentStyle={{
                           background: "oklch(0.21 0.025 252)",
                           border: "1px solid oklch(0.28 0.025 252)",
                           borderRadius: 8,
                           color: "oklch(0.96 0.01 250)",
                         }}
+                        formatter={(v: number) => [formatNumber(v, 2), "سود/زیان"]}
                       />
                       <Bar dataKey="pl" radius={[8, 8, 0, 0]}>
                         {s.monthly.map((m, i) => (
-                          <Bar key={i} dataKey="pl" fill={m.pl >= 0 ? "oklch(0.72 0.17 165)" : "oklch(0.65 0.22 25)"} />
+                          <Cell key={i} fill={m.pl >= 0 ? "oklch(0.72 0.17 165)" : "oklch(0.65 0.22 25)"} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -89,7 +95,10 @@ function DashboardPage() {
               )}
             </div>
 
-            <div className="gradient-card rounded-2xl border border-border/60 p-5">
+            <div
+              className="gradient-card rounded-2xl border border-border/60 p-5 animate-fade-in opacity-0"
+              style={{ animationDelay: "400ms", animationFillMode: "forwards" }}
+            >
               <h3 className="font-semibold mb-4">خلاصه</h3>
               <div className="space-y-3 text-sm">
                 <Row label="معاملات بسته شده" value={formatNumber(s.closed, 0)} />
@@ -102,7 +111,10 @@ function DashboardPage() {
             </div>
           </div>
 
-          <div className="gradient-card rounded-2xl border border-border/60 p-5">
+          <div
+            className="gradient-card rounded-2xl border border-border/60 p-5 animate-fade-in opacity-0"
+            style={{ animationDelay: "480ms", animationFillMode: "forwards" }}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold">آخرین معاملات</h3>
               <Link to="/trades" className="text-xs text-primary hover:underline">مشاهده همه</Link>

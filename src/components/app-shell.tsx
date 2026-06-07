@@ -27,7 +27,7 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
           <div className="size-9 rounded-lg gradient-primary grid place-items-center shadow-glow">
             <TrendingUp className="size-5 text-primary-foreground" />
           </div>
-          <span className="font-bold text-base text-sidebar-foreground">ژورنال معاملاتی</span>
+          <span className="font-bold text-base text-sidebar-foreground">ژورنال کلاب</span>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {nav.map(({ to, label, Icon }) => {

@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { format } from "date-fns";
+import { CalendarIcon, Loader2, Upload, X } from "lucide-react";
+import { toast } from "sonner";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Upload, X } from "lucide-react";
-import { toast } from "sonner";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import type { Trade } from "@/lib/trade-utils";
 
 type FormState = {
@@ -24,25 +29,36 @@ type FormState = {
   mistakes: string;
   lessons: string;
   notes: string;
-  trade_date: string;
+  trade_date: Date;
+  trade_time: string;
 };
 
-const toInitial = (t?: Trade): FormState => ({
-  asset_name: t?.asset_name ?? "",
-  market: t?.market ?? "forex",
-  side: t?.side ?? "buy",
-  entry_price: t?.entry_price?.toString() ?? "",
-  exit_price: t?.exit_price?.toString() ?? "",
-  stop_loss: t?.stop_loss?.toString() ?? "",
-  take_profit: t?.take_profit?.toString() ?? "",
-  position_size: t?.position_size?.toString() ?? "",
-  emotion_before: t?.emotion_before ?? "",
-  emotion_after: t?.emotion_after ?? "",
-  mistakes: t?.mistakes ?? "",
-  lessons: t?.lessons ?? "",
-  notes: t?.notes ?? "",
-  trade_date: (t?.trade_date ?? new Date().toISOString()).slice(0, 16),
-});
+const pad = (n: number) => String(n).padStart(2, "0");
+const numStr = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v));
+
+const toInitial = (t?: Trade): FormState => {
+  const d = t?.trade_date ? new Date(t.trade_date) : new Date();
+  return {
+    asset_name: t?.asset_name ?? "",
+    market: t?.market ?? "forex",
+    side: t?.side ?? "buy",
+    entry_price: numStr(t?.entry_price),
+    exit_price: numStr(t?.exit_price),
+    stop_loss: numStr(t?.stop_loss),
+    take_profit: numStr(t?.take_profit),
+    position_size: numStr(t?.position_size),
+    emotion_before: t?.emotion_before ?? "",
+    emotion_after: t?.emotion_after ?? "",
+    mistakes: t?.mistakes ?? "",
+    lessons: t?.lessons ?? "",
+    notes: t?.notes ?? "",
+    trade_date: d,
+    trade_time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+};
+
+// allow only digits, dot, minus
+const sanitizeNumber = (v: string) => v.replace(/[^\d.\-]/g, "");
 
 export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) {
   const navigate = useNavigate();
@@ -70,6 +86,10 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const [hh, mm] = f.trade_time.split(":").map(Number);
+    const d = new Date(f.trade_date);
+    d.setHours(hh || 0, mm || 0, 0, 0);
+
     const payload = {
       user_id: userId,
       asset_name: f.asset_name.trim(),
@@ -85,7 +105,7 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       mistakes: f.mistakes || null,
       lessons: f.lessons || null,
       notes: f.notes || null,
-      trade_date: new Date(f.trade_date).toISOString(),
+      trade_date: d.toISOString(),
       screenshot_url: screenshotUrl,
     };
 
@@ -99,8 +119,20 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     navigate({ to: "/trades" });
   };
 
+  const numberInput = (key: keyof FormState, placeholder: string) => (
+    <Input
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      value={f[key] as string}
+      onChange={(e) => set(key, sanitizeNumber(e.target.value) as never)}
+      placeholder={placeholder}
+      dir="ltr"
+    />
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
       <Section title="اطلاعات معامله">
         <div className="grid md:grid-cols-2 gap-4">
           <Field label="نام دارایی" required>
@@ -125,24 +157,43 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
               </SelectContent>
             </Select>
           </Field>
-          <Field label="تاریخ معامله">
-            <Input type="datetime-local" value={f.trade_date} onChange={(e) => set("trade_date", e.target.value)} dir="ltr" />
+          <Field label="تاریخ و ساعت معامله">
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn("flex-1 justify-start text-right font-normal", !f.trade_date && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="ml-2 size-4" />
+                    {f.trade_date ? format(f.trade_date, "yyyy/MM/dd") : <span>انتخاب تاریخ</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={f.trade_date}
+                    onSelect={(d) => d && set("trade_date", d)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Input
+                type="time"
+                value={f.trade_time}
+                onChange={(e) => set("trade_time", e.target.value)}
+                dir="ltr"
+                className="w-32"
+              />
+            </div>
           </Field>
-          <Field label="قیمت ورود" required>
-            <Input type="number" step="any" value={f.entry_price} onChange={(e) => set("entry_price", e.target.value)} required dir="ltr" />
-          </Field>
-          <Field label="قیمت خروج">
-            <Input type="number" step="any" value={f.exit_price} onChange={(e) => set("exit_price", e.target.value)} dir="ltr" placeholder="باز" />
-          </Field>
-          <Field label="حد ضرر">
-            <Input type="number" step="any" value={f.stop_loss} onChange={(e) => set("stop_loss", e.target.value)} dir="ltr" />
-          </Field>
-          <Field label="حد سود">
-            <Input type="number" step="any" value={f.take_profit} onChange={(e) => set("take_profit", e.target.value)} dir="ltr" />
-          </Field>
-          <Field label="حجم پوزیشن" required>
-            <Input type="number" step="any" value={f.position_size} onChange={(e) => set("position_size", e.target.value)} required dir="ltr" />
-          </Field>
+          <Field label="قیمت ورود" required>{numberInput("entry_price", "0.00")}</Field>
+          <Field label="قیمت خروج">{numberInput("exit_price", "باز")}</Field>
+          <Field label="حد ضرر">{numberInput("stop_loss", "0.00")}</Field>
+          <Field label="حد سود">{numberInput("take_profit", "0.00")}</Field>
+          <Field label="حجم پوزیشن" required>{numberInput("position_size", "0.00")}</Field>
         </div>
       </Section>
 

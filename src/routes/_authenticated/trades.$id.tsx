@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import type { Trade } from "@/lib/trade-utils";
 
 export const Route = createFileRoute("/_authenticated/trades/$id")({
-  head: () => ({ meta: [{ title: "ویرایش معامله | ژورنال معاملاتی" }] }),
+  head: () => ({ meta: [{ title: "ویرایش معامله | ژورنال کلاب" }] }),
   component: EditTrade,
 });
 
