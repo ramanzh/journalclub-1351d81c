@@ -1,4 +1,4 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+mport { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, ListOrdered, PlusCircle, TrendingUp, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,9 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-row-reverse">
-      {/* Sidebar - سمت راست برای RTL */}
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+    <div className="min-h-screen bg-background text-foreground flex">
+      {/* Sidebar */}
+      <aside className="hidden md:flex w-64 shrink-0 flex-col border-l border-sidebar-border bg-sidebar">
         <div className="px-5 py-5 flex items-center gap-2 border-b border-sidebar-border">
           <div className="size-9 rounded-lg gradient-primary grid place-items-center shadow-glow">
             <TrendingUp className="size-5 text-primary-foreground" />
@@ -55,8 +55,7 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
         </div>
       </aside>
 
-      {/* محتوای اصلی */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
           <div className="flex items-center justify-between px-6 py-4">
             <h1 className="text-xl font-bold">{title}</h1>
@@ -72,7 +71,7 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
             </div>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
       </div>
     </div>
   );
