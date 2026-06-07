@@ -29,10 +29,10 @@ function DashboardPage() {
   const s = computeStats(trades);
 
   const cards = [
-    { label: "تعداد کل معاملات", value: s.total, decimals: 0, Icon: Target, color: "text-chart-3" },
+    { label: "تعداد کل معاملات", value: s.total, decimals: 0, Icon: Target, color: "text-foreground" },
     { label: "نرخ برد", value: s.winRate, decimals: 1, suffix: "٪", Icon: Percent, color: "text-primary" },
     { label: "میانگین R:R", value: s.avgRR, decimals: 2, Icon: TrendingUp, color: "text-warning" },
-    { label: "معاملات بسته شده", value: s.closed, decimals: 0, Icon: BarChart3, color: "text-chart-5" },
+    { label: "معاملات بسته شده", value: s.closed, decimals: 0, Icon: BarChart3, color: "text-foreground" },
   ];
 
   return (
