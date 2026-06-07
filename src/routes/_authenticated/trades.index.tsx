@@ -7,7 +7,7 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/trades/")({
-  head: () => ({ meta: [{ title: "معاملات | ژورنال معاملاتی" }] }),
+  head: () => ({ meta: [{ title: "معاملات | ژورنال کلاب" }] }),
   component: TradesPage,
 });
 

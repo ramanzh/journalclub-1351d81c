@@ -10,7 +10,7 @@ import { TrendingUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "ورود / ثبت‌نام | ژورنال معاملاتی" }] }),
+  head: () => ({ meta: [{ title: "ورود / ثبت‌نام | ژورنال کلاب" }] }),
   component: AuthPage,
 });
 
@@ -74,7 +74,7 @@ function AuthPage() {
           <div className="size-10 rounded-lg gradient-primary grid place-items-center shadow-glow">
             <TrendingUp className="size-5 text-primary-foreground" />
           </div>
-          <span className="font-bold text-xl">ژورنال معاملاتی</span>
+          <span className="font-bold text-xl">ژورنال کلاب</span>
         </Link>
 
         <div className="gradient-card rounded-2xl border border-border/60 p-6 shadow-2xl">

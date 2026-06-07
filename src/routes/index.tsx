@@ -4,7 +4,7 @@ import { TrendingUp, LineChart, BookOpen, Shield, ArrowLeft } from "lucide-react
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ژورنال معاملاتی فارسی | ثبت و تحلیل معاملات" },
+      { title: "ژورنال کلاب فارسی | ثبت و تحلیل معاملات" },
       { name: "description", content: "پلتفرم حرفه‌ای ثبت معاملات فارکس، کریپتو و سهام با تحلیل آماری و ژورنال احساسی." },
     ],
   }),
@@ -20,7 +20,7 @@ function Landing() {
             <div className="size-9 rounded-lg gradient-primary grid place-items-center shadow-glow">
               <TrendingUp className="size-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg">ژورنال معاملاتی</span>
+            <span className="font-bold text-lg">ژورنال کلاب</span>
           </div>
           <nav className="flex items-center gap-3">
             <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition">ورود</Link>
@@ -43,7 +43,7 @@ function Landing() {
           </span>
         </h1>
         <p className="mt-6 text-lg text-muted-foreground max-w-xl mx-auto">
-          ژورنال معاملاتی فارسی برای فارکس، کریپتو و سهام. آمار، نمودار و ژورنال احساسی در یک پلتفرم.
+          ژورنال کلاب فارسی برای فارکس، کریپتو و سهام. آمار، نمودار و ژورنال احساسی در یک پلتفرم.
         </p>
         <div className="mt-8 flex items-center justify-center gap-3">
           <Link to="/auth" className="inline-flex items-center gap-2 rounded-lg gradient-primary px-6 py-3 font-semibold text-primary-foreground shadow-glow">

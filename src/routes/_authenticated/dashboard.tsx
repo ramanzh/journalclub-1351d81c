@@ -8,7 +8,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGri
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "داشبورد | ژورنال معاملاتی" }] }),
+  head: () => ({ meta: [{ title: "داشبورد | ژورنال کلاب" }] }),
   component: DashboardPage,
 });
 

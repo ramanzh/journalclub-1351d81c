@@ -4,7 +4,7 @@ import { TradeForm } from "@/components/trade-form";
 import { useAuth } from "@/lib/use-auth";
 
 export const Route = createFileRoute("/_authenticated/trades/new")({
-  head: () => ({ meta: [{ title: "معامله جدید | ژورنال معاملاتی" }] }),
+  head: () => ({ meta: [{ title: "معامله جدید | ژورنال کلاب" }] }),
   component: NewTrade,
 });
 
