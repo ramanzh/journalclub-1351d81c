@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -217,9 +217,9 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 export function ScreenshotPreview({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(null);
-  useState(() => {
+  useEffect(() => {
     supabase.storage.from("trade-screenshots").createSignedUrl(path, 3600).then(({ data }) => setUrl(data?.signedUrl ?? null));
-  });
+  }, [path]);
   if (!url) return <div className="w-64 h-40 bg-muted rounded-lg animate-pulse" />;
-  return <img src={url} alt="chart" className="max-w-full max-h-96 rounded-lg border border-border" />;
+  return <img src={url} alt="نمودار معامله" className="max-w-full max-h-96 rounded-lg border border-border" />;
 }
