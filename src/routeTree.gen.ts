@@ -14,8 +14,13 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedTradesIndexRouteImport } from './routes/_authenticated/trades.index'
+import { Route as AuthenticatedJournalIndexRouteImport } from './routes/_authenticated/journal.index'
+import { Route as AuthenticatedAccountsIndexRouteImport } from './routes/_authenticated/accounts.index'
 import { Route as AuthenticatedTradesNewRouteImport } from './routes/_authenticated/trades.new'
 import { Route as AuthenticatedTradesIdRouteImport } from './routes/_authenticated/trades.$id'
+import { Route as AuthenticatedJournalNewRouteImport } from './routes/_authenticated/journal.new'
+import { Route as AuthenticatedJournalIdRouteImport } from './routes/_authenticated/journal.$id'
+import { Route as AuthenticatedAccountsIdRouteImport } from './routes/_authenticated/accounts.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -42,6 +47,18 @@ const AuthenticatedTradesIndexRoute =
     path: '/trades/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedJournalIndexRoute =
+  AuthenticatedJournalIndexRouteImport.update({
+    id: '/journal/',
+    path: '/journal/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccountsIndexRoute =
+  AuthenticatedAccountsIndexRouteImport.update({
+    id: '/accounts/',
+    path: '/accounts/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTradesNewRoute = AuthenticatedTradesNewRouteImport.update({
   id: '/trades/new',
   path: '/trades/new',
@@ -52,21 +69,46 @@ const AuthenticatedTradesIdRoute = AuthenticatedTradesIdRouteImport.update({
   path: '/trades/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedJournalNewRoute = AuthenticatedJournalNewRouteImport.update({
+  id: '/journal/new',
+  path: '/journal/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedJournalIdRoute = AuthenticatedJournalIdRouteImport.update({
+  id: '/journal/$id',
+  path: '/journal/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAccountsIdRoute = AuthenticatedAccountsIdRouteImport.update({
+  id: '/accounts/$id',
+  path: '/accounts/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/accounts/$id': typeof AuthenticatedAccountsIdRoute
+  '/journal/$id': typeof AuthenticatedJournalIdRoute
+  '/journal/new': typeof AuthenticatedJournalNewRoute
   '/trades/$id': typeof AuthenticatedTradesIdRoute
   '/trades/new': typeof AuthenticatedTradesNewRoute
+  '/accounts/': typeof AuthenticatedAccountsIndexRoute
+  '/journal/': typeof AuthenticatedJournalIndexRoute
   '/trades/': typeof AuthenticatedTradesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/accounts/$id': typeof AuthenticatedAccountsIdRoute
+  '/journal/$id': typeof AuthenticatedJournalIdRoute
+  '/journal/new': typeof AuthenticatedJournalNewRoute
   '/trades/$id': typeof AuthenticatedTradesIdRoute
   '/trades/new': typeof AuthenticatedTradesNewRoute
+  '/accounts': typeof AuthenticatedAccountsIndexRoute
+  '/journal': typeof AuthenticatedJournalIndexRoute
   '/trades': typeof AuthenticatedTradesIndexRoute
 }
 export interface FileRoutesById {
@@ -75,8 +117,13 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/accounts/$id': typeof AuthenticatedAccountsIdRoute
+  '/_authenticated/journal/$id': typeof AuthenticatedJournalIdRoute
+  '/_authenticated/journal/new': typeof AuthenticatedJournalNewRoute
   '/_authenticated/trades/$id': typeof AuthenticatedTradesIdRoute
   '/_authenticated/trades/new': typeof AuthenticatedTradesNewRoute
+  '/_authenticated/accounts/': typeof AuthenticatedAccountsIndexRoute
+  '/_authenticated/journal/': typeof AuthenticatedJournalIndexRoute
   '/_authenticated/trades/': typeof AuthenticatedTradesIndexRoute
 }
 export interface FileRouteTypes {
@@ -85,19 +132,40 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/accounts/$id'
+    | '/journal/$id'
+    | '/journal/new'
     | '/trades/$id'
     | '/trades/new'
+    | '/accounts/'
+    | '/journal/'
     | '/trades/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/trades/$id' | '/trades/new' | '/trades'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/accounts/$id'
+    | '/journal/$id'
+    | '/journal/new'
+    | '/trades/$id'
+    | '/trades/new'
+    | '/accounts'
+    | '/journal'
+    | '/trades'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
+    | '/_authenticated/accounts/$id'
+    | '/_authenticated/journal/$id'
+    | '/_authenticated/journal/new'
     | '/_authenticated/trades/$id'
     | '/_authenticated/trades/new'
+    | '/_authenticated/accounts/'
+    | '/_authenticated/journal/'
     | '/_authenticated/trades/'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +212,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTradesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/journal/': {
+      id: '/_authenticated/journal/'
+      path: '/journal'
+      fullPath: '/journal/'
+      preLoaderRoute: typeof AuthenticatedJournalIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/accounts/': {
+      id: '/_authenticated/accounts/'
+      path: '/accounts'
+      fullPath: '/accounts/'
+      preLoaderRoute: typeof AuthenticatedAccountsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/trades/new': {
       id: '/_authenticated/trades/new'
       path: '/trades/new'
@@ -158,20 +240,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTradesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/journal/new': {
+      id: '/_authenticated/journal/new'
+      path: '/journal/new'
+      fullPath: '/journal/new'
+      preLoaderRoute: typeof AuthenticatedJournalNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/journal/$id': {
+      id: '/_authenticated/journal/$id'
+      path: '/journal/$id'
+      fullPath: '/journal/$id'
+      preLoaderRoute: typeof AuthenticatedJournalIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/accounts/$id': {
+      id: '/_authenticated/accounts/$id'
+      path: '/accounts/$id'
+      fullPath: '/accounts/$id'
+      preLoaderRoute: typeof AuthenticatedAccountsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedAccountsIdRoute: typeof AuthenticatedAccountsIdRoute
+  AuthenticatedJournalIdRoute: typeof AuthenticatedJournalIdRoute
+  AuthenticatedJournalNewRoute: typeof AuthenticatedJournalNewRoute
   AuthenticatedTradesIdRoute: typeof AuthenticatedTradesIdRoute
   AuthenticatedTradesNewRoute: typeof AuthenticatedTradesNewRoute
+  AuthenticatedAccountsIndexRoute: typeof AuthenticatedAccountsIndexRoute
+  AuthenticatedJournalIndexRoute: typeof AuthenticatedJournalIndexRoute
   AuthenticatedTradesIndexRoute: typeof AuthenticatedTradesIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedAccountsIdRoute: AuthenticatedAccountsIdRoute,
+  AuthenticatedJournalIdRoute: AuthenticatedJournalIdRoute,
+  AuthenticatedJournalNewRoute: AuthenticatedJournalNewRoute,
   AuthenticatedTradesIdRoute: AuthenticatedTradesIdRoute,
   AuthenticatedTradesNewRoute: AuthenticatedTradesNewRoute,
+  AuthenticatedAccountsIndexRoute: AuthenticatedAccountsIndexRoute,
+  AuthenticatedJournalIndexRoute: AuthenticatedJournalIndexRoute,
   AuthenticatedTradesIndexRoute: AuthenticatedTradesIndexRoute,
 }
 

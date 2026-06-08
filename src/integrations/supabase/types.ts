@@ -14,6 +14,96 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          account_type: Database["public"]["Enums"]["account_type"]
+          broker: string | null
+          created_at: string
+          id: string
+          initial_balance: number
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type?: Database["public"]["Enums"]["account_type"]
+          broker?: string | null
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: Database["public"]["Enums"]["account_type"]
+          broker?: string | null
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      favorite_instruments: {
+        Row: {
+          created_at: string
+          id: string
+          market: Database["public"]["Enums"]["asset_market"]
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          market: Database["public"]["Enums"]["asset_market"]
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          market?: Database["public"]["Enums"]["asset_market"]
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      journal_entries: {
+        Row: {
+          content: string
+          created_at: string
+          entry_date: string
+          id: string
+          image_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          entry_date?: string
+          id?: string
+          image_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          entry_date?: string
+          id?: string
+          image_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -37,6 +127,7 @@ export type Database = {
       }
       trades: {
         Row: {
+          account_id: string | null
           asset_name: string
           created_at: string
           emotion_after: string | null
@@ -50,6 +141,8 @@ export type Database = {
           notes: string | null
           position_size: number
           profit_loss: number | null
+          profit_loss_percent: number | null
+          risk_percent: number | null
           screenshot_url: string | null
           side: Database["public"]["Enums"]["trade_side"]
           stop_loss: number | null
@@ -59,6 +152,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           asset_name: string
           created_at?: string
           emotion_after?: string | null
@@ -72,6 +166,8 @@ export type Database = {
           notes?: string | null
           position_size: number
           profit_loss?: number | null
+          profit_loss_percent?: number | null
+          risk_percent?: number | null
           screenshot_url?: string | null
           side: Database["public"]["Enums"]["trade_side"]
           stop_loss?: number | null
@@ -81,6 +177,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_id?: string | null
           asset_name?: string
           created_at?: string
           emotion_after?: string | null
@@ -94,6 +191,8 @@ export type Database = {
           notes?: string | null
           position_size?: number
           profit_loss?: number | null
+          profit_loss_percent?: number | null
+          risk_percent?: number | null
           screenshot_url?: string | null
           side?: Database["public"]["Enums"]["trade_side"]
           stop_loss?: number | null
@@ -102,7 +201,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trades_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -112,6 +219,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      account_type: "demo" | "prop" | "real"
       asset_market: "forex" | "crypto" | "stock"
       trade_side: "buy" | "sell"
     }
@@ -241,6 +349,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_type: ["demo", "prop", "real"],
       asset_market: ["forex", "crypto", "stock"],
       trade_side: ["buy", "sell"],
     },
