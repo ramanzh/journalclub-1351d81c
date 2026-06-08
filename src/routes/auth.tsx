@@ -66,7 +66,7 @@ function AuthPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -77,16 +77,23 @@ function AuthPage() {
     setLoading(false);
     if (error) {
       if (
-        error.message.includes("already registered") ||
-        error.message.includes("User already registered") ||
-        error.message.includes("email address is already")
+        error.message.toLowerCase().includes("already") ||
+        error.message.toLowerCase().includes("registered") ||
+        error.message.toLowerCase().includes("exists")
       ) {
-        toast.error("این ایمیل قبلاً ثبت شده است", {
+        toast.error("حسابی با این ایمیل از قبل وجود دارد", {
           description: "لطفاً وارد حساب خود شوید یا رمز عبور را بازیابی کنید.",
         });
       } else {
         toast.error("ثبت‌نام ناموفق", { description: error.message });
       }
+      return;
+    }
+    // Supabase returns a user with empty identities[] when the email already exists
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      toast.error("حسابی با این ایمیل از قبل وجود دارد", {
+        description: "لطفاً وارد حساب خود شوید یا رمز عبور را بازیابی کنید.",
+      });
       return;
     }
     toast.success("حساب ساخته شد", {
