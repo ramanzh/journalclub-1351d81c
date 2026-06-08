@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
@@ -12,18 +13,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { InstrumentPicker } from "@/components/instrument-picker";
 import { cn } from "@/lib/utils";
-import type { Trade } from "@/lib/trade-utils";
+import type { Account, Trade } from "@/lib/trade-utils";
 
 type FormState = {
   asset_name: string;
   market: Trade["market"];
   side: Trade["side"];
+  account_id: string;
   entry_price: string;
   exit_price: string;
   stop_loss: string;
   take_profit: string;
   position_size: string;
+  risk_percent: string;
   emotion_before: string;
   emotion_after: string;
   mistakes: string;
@@ -42,11 +46,13 @@ const toInitial = (t?: Trade): FormState => {
     asset_name: t?.asset_name ?? "",
     market: t?.market ?? "forex",
     side: t?.side ?? "buy",
+    account_id: t?.account_id ?? "none",
     entry_price: numStr(t?.entry_price),
     exit_price: numStr(t?.exit_price),
     stop_loss: numStr(t?.stop_loss),
     take_profit: numStr(t?.take_profit),
     position_size: numStr(t?.position_size),
+    risk_percent: numStr(t?.risk_percent),
     emotion_before: t?.emotion_before ?? "",
     emotion_after: t?.emotion_after ?? "",
     mistakes: t?.mistakes ?? "",
@@ -57,7 +63,6 @@ const toInitial = (t?: Trade): FormState => {
   };
 };
 
-// allow only digits, dot, minus
 const sanitizeNumber = (v: string) => v.replace(/[^\d.\-]/g, "");
 
 export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) {
@@ -69,15 +74,20 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
 
+  const { data: accounts } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("accounts").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Account[];
+    },
+  });
+
   const handleUpload = async (file: File) => {
     setUploading(true);
     const path = `${userId}/${Date.now()}-${file.name}`;
     const { error } = await supabase.storage.from("trade-screenshots").upload(path, file, { upsert: true });
-    if (error) {
-      setUploading(false);
-      toast.error("آپلود ناموفق", { description: error.message });
-      return;
-    }
+    if (error) { setUploading(false); toast.error("آپلود ناموفق", { description: error.message }); return; }
     setScreenshotUrl(path);
     setUploading(false);
     toast.success("تصویر آپلود شد");
@@ -92,6 +102,7 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
 
     const payload = {
       user_id: userId,
+      account_id: f.account_id === "none" ? null : f.account_id,
       asset_name: f.asset_name.trim(),
       market: f.market,
       side: f.side,
@@ -100,6 +111,7 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       stop_loss: f.stop_loss ? parseFloat(f.stop_loss) : null,
       take_profit: f.take_profit ? parseFloat(f.take_profit) : null,
       position_size: parseFloat(f.position_size),
+      risk_percent: f.risk_percent ? parseFloat(f.risk_percent) : null,
       emotion_before: f.emotion_before || null,
       emotion_after: f.emotion_after || null,
       mistakes: f.mistakes || null,
@@ -135,9 +147,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
       <Section title="اطلاعات معامله">
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="نام دارایی" required>
-            <Input value={f.asset_name} onChange={(e) => set("asset_name", e.target.value)} required placeholder="مثلاً BTC/USDT, EURUSD" />
-          </Field>
           <Field label="بازار">
             <Select value={f.market} onValueChange={(v) => set("market", v as Trade["market"])}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -148,6 +157,22 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
               </SelectContent>
             </Select>
           </Field>
+          <Field label="حساب">
+            <Select value={f.account_id} onValueChange={(v) => set("account_id", v)}>
+              <SelectTrigger><SelectValue placeholder="انتخاب حساب" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">بدون حساب</SelectItem>
+                {(accounts ?? []).map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <div className="md:col-span-2">
+            <Field label="ارز / ابزار" required>
+              <InstrumentPicker market={f.market} value={f.asset_name} onChange={(v) => set("asset_name", v)} userId={userId} />
+            </Field>
+          </div>
           <Field label="جهت">
             <Select value={f.side} onValueChange={(v) => set("side", v as Trade["side"])}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -161,39 +186,26 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             <div className="flex gap-2">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={cn("flex-1 justify-start text-right font-normal", !f.trade_date && "text-muted-foreground")}
-                  >
+                  <Button type="button" variant="outline"
+                    className={cn("flex-1 justify-start text-right font-normal", !f.trade_date && "text-muted-foreground")}>
                     <CalendarIcon className="ml-2 size-4" />
                     {f.trade_date ? format(f.trade_date, "yyyy/MM/dd") : <span>انتخاب تاریخ</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={f.trade_date}
-                    onSelect={(d) => d && set("trade_date", d)}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
+                  <Calendar mode="single" selected={f.trade_date} onSelect={(d) => d && set("trade_date", d)}
+                    initialFocus className={cn("p-3 pointer-events-auto")} />
                 </PopoverContent>
               </Popover>
-              <Input
-                type="time"
-                value={f.trade_time}
-                onChange={(e) => set("trade_time", e.target.value)}
-                dir="ltr"
-                className="w-32"
-              />
+              <Input type="time" value={f.trade_time} onChange={(e) => set("trade_time", e.target.value)} dir="ltr" className="w-32" />
             </div>
           </Field>
           <Field label="قیمت ورود" required>{numberInput("entry_price", "0.00")}</Field>
-          <Field label="قیمت خروج">{numberInput("exit_price", "باز")}</Field>
+          <Field label="قیمت خروج">{numberInput("exit_price", "0.00")}</Field>
           <Field label="حد ضرر">{numberInput("stop_loss", "0.00")}</Field>
           <Field label="حد سود">{numberInput("take_profit", "0.00")}</Field>
           <Field label="حجم پوزیشن" required>{numberInput("position_size", "0.00")}</Field>
+          <Field label="ریسک (%)">{numberInput("risk_percent", "1.00")}</Field>
         </div>
       </Section>
 

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
-import { formatDate, formatNumber, marketLabel, sideLabel, type Trade } from "@/lib/trade-utils";
+import { formatDate, formatNumber, formatPercent, marketLabel, sideLabel, type Account, type Trade } from "@/lib/trade-utils";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/trades/")({
 
 function TradesPage() {
   const navigate = useNavigate();
-  const { data, isLoading } = useQuery({
+  const tradesQ = useQuery({
     queryKey: ["trades", "list"],
     queryFn: async () => {
       const { data, error } = await supabase.from("trades").select("*").order("trade_date", { ascending: false });
@@ -21,8 +21,17 @@ function TradesPage() {
       return data as Trade[];
     },
   });
+  const accountsQ = useQuery({
+    queryKey: ["accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("accounts").select("*");
+      if (error) throw error;
+      return data as Account[];
+    },
+  });
 
-  const trades = data ?? [];
+  const trades = tradesQ.data ?? [];
+  const accMap = new Map((accountsQ.data ?? []).map((a) => [a.id, a]));
 
   return (
     <AppShell title="معاملات">
@@ -33,7 +42,7 @@ function TradesPage() {
         </Link>
       </div>
 
-      {isLoading ? (
+      {tradesQ.isLoading ? (
         <div className="grid place-items-center py-24"><Loader2 className="size-6 animate-spin text-primary" /></div>
       ) : trades.length === 0 ? (
         <div className="gradient-card rounded-2xl border border-border/60 p-12 text-center">
@@ -48,12 +57,13 @@ function TradesPage() {
             <table className="w-full text-sm text-right">
               <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wide">
                 <tr>
-                  <th className="px-4 py-3 font-medium text-right">دارایی</th>
+                  <th className="px-4 py-3 font-medium text-right">ارز</th>
                   <th className="px-4 py-3 font-medium text-right">بازار</th>
                   <th className="px-4 py-3 font-medium text-right">جهت</th>
+                  <th className="px-4 py-3 font-medium text-right">حساب</th>
                   <th className="px-4 py-3 font-medium text-right">ورود</th>
                   <th className="px-4 py-3 font-medium text-right">خروج</th>
-                  <th className="px-4 py-3 font-medium text-right">سود/زیان</th>
+                  <th className="px-4 py-3 font-medium text-right">بازده</th>
                   <th className="px-4 py-3 font-medium text-right">تاریخ</th>
                 </tr>
               </thead>
@@ -64,7 +74,7 @@ function TradesPage() {
                     onClick={() => navigate({ to: "/trades/$id", params: { id: t.id } })}
                     className="border-t border-border/40 hover:bg-accent/30 transition cursor-pointer"
                   >
-                    <td className="px-4 py-3 font-semibold">{t.asset_name}</td>
+                    <td className="px-4 py-3 font-semibold" dir="ltr">{t.asset_name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{marketLabel[t.market]}</td>
                     <td className="px-4 py-3">
                       <Badge
@@ -74,18 +84,17 @@ function TradesPage() {
                         {sideLabel[t.side]}
                       </Badge>
                     </td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">
+                      {t.account_id ? accMap.get(t.account_id)?.name ?? "—" : "—"}
+                    </td>
                     <td className="px-4 py-3 num">{formatNumber(t.entry_price, 4)}</td>
                     <td className="px-4 py-3 num">{t.exit_price === null ? "—" : formatNumber(t.exit_price, 4)}</td>
-                    <td
-                      className={`px-4 py-3 num font-semibold ${
-                        t.profit_loss === null
-                          ? "text-muted-foreground"
-                          : (t.profit_loss ?? 0) >= 0
-                          ? "text-primary"
-                          : "text-destructive"
-                      }`}
-                    >
-                      {t.profit_loss === null ? "باز" : formatNumber(t.profit_loss, 2)}
+                    <td className={`px-4 py-3 num font-semibold ${
+                      t.profit_loss_percent === null
+                        ? "text-muted-foreground"
+                        : (t.profit_loss_percent ?? 0) >= 0 ? "text-primary" : "text-destructive"
+                    }`}>
+                      {t.profit_loss_percent === null ? "باز" : formatPercent(t.profit_loss_percent)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{formatDate(t.trade_date)}</td>
                   </tr>

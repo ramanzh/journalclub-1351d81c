@@ -1,12 +1,14 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ListOrdered, PlusCircle, TrendingUp, LogOut } from "lucide-react";
+import { LayoutDashboard, ListOrdered, PlusCircle, TrendingUp, LogOut, Wallet, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import type { ReactNode } from "react";
 
 const nav = [
   { to: "/dashboard", label: "داشبورد", Icon: LayoutDashboard },
+  { to: "/accounts", label: "حساب‌ها", Icon: Wallet },
   { to: "/trades", label: "معاملات", Icon: ListOrdered },
+  { to: "/journal", label: "ژورنال", Icon: BookOpen },
   { to: "/trades/new", label: "معامله جدید", Icon: PlusCircle },
 ] as const;
 
@@ -54,7 +56,7 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
         <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
           <div className="flex items-center justify-between px-6 py-4">
             <h1 className="text-xl font-bold">{title}</h1>
-            <div className="md:hidden flex items-center gap-2">
+            <div className="md:hidden flex items-center gap-1.5">
               {nav.map(({ to, Icon, label }) => (
                 <Link key={to} to={to} className="rounded-md p-2 hover:bg-accent" title={label}>
                   <Icon className="size-4" />
