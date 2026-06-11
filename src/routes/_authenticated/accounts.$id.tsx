@@ -90,8 +90,8 @@ function AccountPage() {
                   <span className={`size-2 rounded-full ${t.side === "buy" ? "bg-primary" : "bg-destructive"}`} />
                   <span className="font-medium" dir="ltr">{t.asset_name}</span>
                 </div>
-                <span className={`num font-semibold ${(t.profit_loss_percent ?? 0) >= 0 ? "text-primary" : "text-destructive"}`}>
-                  {t.profit_loss_percent === null ? "باز" : formatPercent(t.profit_loss_percent)}
+                <span className="num font-semibold text-muted-foreground text-xs">
+                  {t.risk_percent === null || t.risk_percent === undefined ? "—" : `ریسک ${formatPercent(t.risk_percent)}`}
                 </span>
               </Link>
             ))}
