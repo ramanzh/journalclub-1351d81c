@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { TrendingUp, Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -16,6 +16,37 @@ export const Route = createFileRoute("/auth")({
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// لوگوی جدید SVG
+function JournalClubLogo({ size = 40 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="40" height="40" rx="10" fill="url(#logoGrad)" />
+      <defs>
+        <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1D9E75" />
+          <stop offset="100%" stopColor="#0F6E56" />
+        </linearGradient>
+      </defs>
+      {/* نمودار کندل‌استیک */}
+      <rect x="8" y="22" width="4" height="10" rx="1" fill="white" fillOpacity="0.9" />
+      <rect x="9.5" y="18" width="1" height="5" fill="white" fillOpacity="0.7" />
+      <rect x="9.5" y="32" width="1" height="3" fill="white" fillOpacity="0.7" />
+
+      <rect x="15" y="14" width="4" height="14" rx="1" fill="white" fillOpacity="0.9" />
+      <rect x="16.5" y="10" width="1" height="5" fill="white" fillOpacity="0.7" />
+      <rect x="16.5" y="28" width="1" height="4" fill="white" fillOpacity="0.7" />
+
+      <rect x="22" y="18" width="4" height="8" rx="1" fill="#a7f3d0" fillOpacity="0.95" />
+      <rect x="23.5" y="14" width="1" height="5" fill="white" fillOpacity="0.7" />
+      <rect x="23.5" y="26" width="1" height="4" fill="white" fillOpacity="0.7" />
+
+      <rect x="29" y="12" width="4" height="16" rx="1" fill="white" fillOpacity="0.9" />
+      <rect x="30.5" y="8" width="1" height="5" fill="white" fillOpacity="0.7" />
+      <rect x="30.5" y="28" width="1" height="4" fill="white" fillOpacity="0.7" />
+    </svg>
+  );
 }
 
 function AuthPage() {
@@ -29,10 +60,11 @@ function AuthPage() {
   const [forgotSent, setForgotSent] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
+    // ✅ اصلاح باگ: اول sign out کن تا session قبلی پاک بشه
+    supabase.auth.signOut().then(() => {
+      // بعد از sign out، دیگه redirect نمیشه
     });
-  }, [navigate]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,7 +121,6 @@ function AuthPage() {
       }
       return;
     }
-    // Supabase returns a user with empty identities[] when the email already exists
     if (data.user && (data.user.identities?.length ?? 0) === 0) {
       toast.error("حسابی با این ایمیل از قبل وجود دارد", {
         description: "لطفاً وارد حساب خود شوید یا رمز عبور را بازیابی کنید.",
@@ -133,15 +164,12 @@ function AuthPage() {
     setForgotSent(true);
   };
 
-  // صفحه فراموشی رمز عبور
   if (showForgot) {
     return (
       <div className="min-h-screen grid place-items-center px-4 py-12 bg-background">
         <div className="w-full max-w-md">
           <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-            <div className="size-10 rounded-lg gradient-primary grid place-items-center shadow-glow">
-              <TrendingUp className="size-5 text-primary-foreground" />
-            </div>
+            <JournalClubLogo size={40} />
             <span className="font-bold text-xl">ژورنال کلاب</span>
           </Link>
 
@@ -162,7 +190,7 @@ function AuthPage() {
             {forgotSent ? (
               <div className="text-center py-6 space-y-3">
                 <div className="size-14 rounded-full bg-primary/10 grid place-items-center mx-auto">
-                  <TrendingUp className="size-6 text-primary" />
+                  <JournalClubLogo size={28} />
                 </div>
                 <p className="font-semibold">ایمیل ارسال شد!</p>
                 <p className="text-sm text-muted-foreground">
@@ -204,14 +232,11 @@ function AuthPage() {
     );
   }
 
-  // صفحه اصلی ورود/ثبت‌نام
   return (
     <div className="min-h-screen grid place-items-center px-4 py-12 bg-background">
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="size-10 rounded-lg gradient-primary grid place-items-center shadow-glow">
-            <TrendingUp className="size-5 text-primary-foreground" />
-          </div>
+          <JournalClubLogo size={40} />
           <span className="font-bold text-xl">ژورنال کلاب</span>
         </Link>
 
@@ -332,4 +357,3 @@ function AuthPage() {
     </div>
   );
 }
-
