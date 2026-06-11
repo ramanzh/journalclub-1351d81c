@@ -28,20 +28,23 @@ function AccountsPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("accounts").select("*").order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Account[];
+      return (data ?? []) as Account[];
     },
+    retry: 1,
   });
   const tradesQ = useQuery({
     queryKey: ["trades", "all"],
     queryFn: async () => {
       const { data, error } = await supabase.from("trades").select("*");
       if (error) throw error;
-      return data as Trade[];
+      return (data ?? []) as Trade[];
     },
+    retry: 1,
   });
 
   const accounts = accountsQ.data ?? [];
   const trades = tradesQ.data ?? [];
+  const loadError = accountsQ.error || tradesQ.error;
 
   return (
     <AppShell title="حساب‌ها">
@@ -62,6 +65,12 @@ function AccountsPage() {
 
       {accountsQ.isLoading ? (
         <div className="grid place-items-center py-24"><Loader2 className="size-6 animate-spin text-primary" /></div>
+      ) : loadError ? (
+        <div className="gradient-card rounded-2xl border border-destructive/40 p-8 text-center space-y-3">
+          <p className="text-destructive font-semibold">خطا در بارگذاری حساب‌ها</p>
+          <p className="text-xs text-muted-foreground font-mono break-all">{(loadError as Error).message}</p>
+          <Button onClick={() => { accountsQ.refetch(); tradesQ.refetch(); }} variant="outline" size="sm">تلاش دوباره</Button>
+        </div>
       ) : accounts.length === 0 ? (
         <div className="gradient-card rounded-2xl border border-border/60 p-12 text-center">
           <Wallet className="size-10 text-muted-foreground mx-auto mb-3" />
