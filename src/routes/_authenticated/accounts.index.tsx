@@ -34,6 +34,7 @@ function AccountsPage() {
     retry: 1,
   });
   const tradesQ = useQuery({
+    enabled: !!user,
     queryKey: ["trades", "all"],
     queryFn: async () => {
       const { data, error } = await supabase.from("trades").select("*");
@@ -46,6 +47,7 @@ function AccountsPage() {
   const accounts = accountsQ.data ?? [];
   const trades = tradesQ.data ?? [];
   const loadError = accountsQ.error || tradesQ.error;
+  const isLoading = authLoading || accountsQ.isLoading || tradesQ.isLoading;
 
   return (
     <AppShell title="حساب‌ها">
