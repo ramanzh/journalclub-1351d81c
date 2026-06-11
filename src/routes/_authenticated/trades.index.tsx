@@ -89,12 +89,8 @@ function TradesPage() {
                     </td>
                     <td className="px-4 py-3 num">{formatNumber(t.entry_price, 4)}</td>
                     <td className="px-4 py-3 num">{t.exit_price === null ? "—" : formatNumber(t.exit_price, 4)}</td>
-                    <td className={`px-4 py-3 num font-semibold ${
-                      t.profit_loss_percent === null
-                        ? "text-muted-foreground"
-                        : (t.profit_loss_percent ?? 0) >= 0 ? "text-primary" : "text-destructive"
-                    }`}>
-                      {t.profit_loss_percent === null ? "باز" : formatPercent(t.profit_loss_percent)}
+                    <td className="px-4 py-3 num text-muted-foreground">
+                      {t.risk_percent === null || t.risk_percent === undefined ? "—" : formatPercent(t.risk_percent)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{formatDate(t.trade_date)}</td>
                   </tr>
