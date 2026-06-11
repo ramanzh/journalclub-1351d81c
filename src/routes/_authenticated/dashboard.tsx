@@ -1,16 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { buildEquityCurve, computeStats, formatNumber, formatPercent, type Account, type Trade } from "@/lib/trade-utils";
-import { TrendingUp, Target, Percent, ArrowLeft, Loader2, BarChart3 } from "lucide-react";
+import { Target, Percent, ArrowLeft, Loader2, ShieldCheck, Activity, Gauge } from "lucide-react";
 import { CountUp } from "@/components/count-up";
 import { EquityCurve } from "@/components/equity-curve";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "داشبورد | ژورنال کلاب" }] }),
   component: DashboardPage,
 });
+
+type Filter = "all" | "demo" | "prop" | "real" | string;
 
 function DashboardPage() {
   const tradesQ = useQuery({
@@ -18,30 +22,46 @@ function DashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("trades").select("*").order("trade_date", { ascending: false });
       if (error) throw error;
-      return data as Trade[];
+      return (data ?? []) as Trade[];
     },
+    retry: 1,
   });
   const accountsQ = useQuery({
     queryKey: ["accounts"],
     queryFn: async () => {
       const { data, error } = await supabase.from("accounts").select("*");
       if (error) throw error;
-      return data as Account[];
+      return (data ?? []) as Account[];
     },
+    retry: 1,
   });
 
   const trades = tradesQ.data ?? [];
   const accounts = accountsQ.data ?? [];
   const isLoading = tradesQ.isLoading || accountsQ.isLoading;
   const s = computeStats(trades, accounts);
-  const totalInitial = accounts.reduce((sum, a) => sum + Number(a.initial_balance || 0), 0);
-  const curve = buildEquityCurve(trades, totalInitial);
+
+  const [filter, setFilter] = useState<Filter>("all");
+
+  const { curve } = useMemo(() => {
+    let selectedAccounts: Account[] = accounts;
+    if (filter === "demo" || filter === "prop" || filter === "real") {
+      selectedAccounts = accounts.filter((a) => a.account_type === filter);
+    } else if (filter !== "all") {
+      selectedAccounts = accounts.filter((a) => a.id === filter);
+    }
+    const ids = new Set(selectedAccounts.map((a) => a.id));
+    const scopedTrades = filter === "all" ? trades : trades.filter((t) => t.account_id && ids.has(t.account_id));
+    const initial = selectedAccounts.reduce((sum, a) => sum + Number(a.initial_balance || 0), 0);
+    return { curve: buildEquityCurve(scopedTrades, initial) };
+  }, [filter, trades, accounts]);
 
   const cards = [
     { label: "تعداد کل معاملات", value: s.total, decimals: 0, Icon: Target, color: "text-foreground" },
     { label: "نرخ برد", value: s.winRate, decimals: 1, suffix: "٪", Icon: Percent, color: "text-primary" },
-    { label: "میانگین بازده", value: s.avgReturnPct, decimals: 2, suffix: "٪", Icon: TrendingUp, color: s.avgReturnPct >= 0 ? "text-primary" : "text-destructive" },
-    { label: "بازده کل", value: s.totalReturnPct, decimals: 2, suffix: "٪", Icon: BarChart3, color: s.totalReturnPct >= 0 ? "text-primary" : "text-destructive" },
+    { label: "میانگین ریسک", value: s.avgRisk, decimals: 2, suffix: "٪", Icon: Activity, color: "text-foreground" },
+    { label: "ثبات ریسک", value: s.riskConsistency, decimals: 0, suffix: "٪", Icon: Gauge, color: s.riskConsistency >= 70 ? "text-primary" : s.riskConsistency >= 40 ? "text-foreground" : "text-destructive" },
+    { label: "انضباط ریسک", value: s.riskDiscipline, decimals: 0, suffix: "٪", Icon: ShieldCheck, color: s.riskDiscipline >= 70 ? "text-primary" : s.riskDiscipline >= 40 ? "text-foreground" : "text-destructive" },
   ];
 
   return (
@@ -50,7 +70,7 @@ function DashboardPage() {
         <div className="grid place-items-center py-24"><Loader2 className="size-6 animate-spin text-primary" /></div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {cards.map(({ label, value, decimals, suffix, Icon, color }, i) => (
               <div
                 key={label}
@@ -71,7 +91,22 @@ function DashboardPage() {
           <div className="grid lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 gradient-card rounded-2xl border border-border/60 p-5 animate-fade-in opacity-0"
               style={{ animationDelay: "320ms", animationFillMode: "forwards" }}>
-              <h3 className="font-semibold mb-4">نمودار اکوییتی (همه حساب‌ها)</h3>
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <h3 className="font-semibold">نمودار اکوییتی</h3>
+                <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+                  <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">همه حساب‌ها</SelectItem>
+                    <SelectItem value="demo">حساب‌های دمو</SelectItem>
+                    <SelectItem value="prop">حساب‌های پراپ</SelectItem>
+                    <SelectItem value="real">حساب‌های واقعی</SelectItem>
+                    {accounts.length > 0 && <div className="px-2 py-1 text-xs text-muted-foreground">— حساب‌ها —</div>}
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <EquityCurve data={curve} />
             </div>
 
@@ -110,8 +145,8 @@ function DashboardPage() {
                       <span className="font-medium" dir="ltr">{t.asset_name}</span>
                       <span className="text-xs text-muted-foreground">{t.side === "buy" ? "خرید" : "فروش"}</span>
                     </div>
-                    <span className={`num font-semibold ${(t.profit_loss_percent ?? 0) >= 0 ? "text-primary" : "text-destructive"}`}>
-                      {t.profit_loss_percent === null ? "باز" : formatPercent(t.profit_loss_percent)}
+                    <span className="text-xs text-muted-foreground num">
+                      {t.risk_percent !== null && t.risk_percent !== undefined ? `ریسک ${formatPercent(t.risk_percent)}` : "—"}
                     </span>
                   </Link>
                 ))}
