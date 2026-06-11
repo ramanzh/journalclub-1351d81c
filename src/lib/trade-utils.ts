@@ -125,6 +125,21 @@ export function computeStats(trades: Trade[], accounts: Account[] = []) {
     .filter((v): v is number => v !== null && v !== undefined && isFinite(v));
   const avgRisk = risks.length ? risks.reduce((s, v) => s + v, 0) / risks.length : 0;
 
+  let riskConsistency = 0;
+  if (risks.length >= 2 && avgRisk > 0) {
+    const variance = risks.reduce((s, v) => s + (v - avgRisk) ** 2, 0) / risks.length;
+    const cv = (Math.sqrt(variance) / avgRisk) * 100;
+    riskConsistency = Math.max(0, Math.min(100, 100 - cv));
+  } else if (risks.length === 1) {
+    riskConsistency = 100;
+  }
+
+  let riskDiscipline = 0;
+  if (risks.length && avgRisk > 0) {
+    const within = risks.filter((v) => Math.abs(v - avgRisk) / avgRisk <= 0.25).length;
+    riskDiscipline = (within / risks.length) * 100;
+  }
+
   return {
     total: trades.length,
     closed: closed.length,
@@ -133,6 +148,8 @@ export function computeStats(trades: Trade[], accounts: Account[] = []) {
     winRate,
     avgRR,
     avgRisk,
+    riskConsistency,
+    riskDiscipline,
     totalPL,
     totalReturnPct,
     avgReturnPct,
