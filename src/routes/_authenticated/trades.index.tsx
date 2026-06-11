@@ -63,7 +63,7 @@ function TradesPage() {
                   <th className="px-4 py-3 font-medium text-right">حساب</th>
                   <th className="px-4 py-3 font-medium text-right">ورود</th>
                   <th className="px-4 py-3 font-medium text-right">خروج</th>
-                  <th className="px-4 py-3 font-medium text-right">بازده</th>
+                  <th className="px-4 py-3 font-medium text-right">ریسک</th>
                   <th className="px-4 py-3 font-medium text-right">تاریخ</th>
                 </tr>
               </thead>
