@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { buildEquityCurve, computeStats, formatNumber, formatPercent, type Account, type Trade } from "@/lib/trade-utils";
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
 });
 
-type Filter = "all" | "demo" | "prop" | "real" | string;
+type Filter = "demo" | "prop" | "real" | string;
 
 function DashboardPage() {
   const tradesQ = useQuery({
@@ -41,17 +41,24 @@ function DashboardPage() {
   const isLoading = tradesQ.isLoading || accountsQ.isLoading;
   const s = computeStats(trades, accounts);
 
-  const [filter, setFilter] = useState<Filter>("all");
+  // state اول رو به اولین حساب واقعی تنظیم کن
+  const [filter, setFilter] = useState<Filter>("");
+
+  useEffect(() => {
+    if (accounts.length > 0 && filter === "") {
+      setFilter(accounts[0].id);
+    }
+  }, [accounts]);
 
   const { curve } = useMemo(() => {
     let selectedAccounts: Account[] = accounts;
     if (filter === "demo" || filter === "prop" || filter === "real") {
       selectedAccounts = accounts.filter((a) => a.account_type === filter);
-    } else if (filter !== "all") {
+    } else if (filter !== "") {
       selectedAccounts = accounts.filter((a) => a.id === filter);
     }
     const ids = new Set(selectedAccounts.map((a) => a.id));
-    const scopedTrades = filter === "all" ? trades : trades.filter((t) => t.account_id && ids.has(t.account_id));
+    const scopedTrades = trades.filter((t) => t.account_id && ids.has(t.account_id));
     const initial = selectedAccounts.reduce((sum, a) => sum + Number(a.initial_balance || 0), 0);
     return { curve: buildEquityCurve(scopedTrades, initial) };
   }, [filter, trades, accounts]);
@@ -94,13 +101,15 @@ function DashboardPage() {
               <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <h3 className="font-semibold">نمودار اکوییتی</h3>
                 <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-                  <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-56"><SelectValue placeholder="انتخاب حساب" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">همه حساب‌ها</SelectItem>
+                    {/* گروه‌بندی بر اساس نوع */}
                     <SelectItem value="demo">حساب‌های دمو</SelectItem>
                     <SelectItem value="prop">حساب‌های پراپ</SelectItem>
                     <SelectItem value="real">حساب‌های واقعی</SelectItem>
-                    {accounts.length > 0 && <div className="px-2 py-1 text-xs text-muted-foreground">— حساب‌ها —</div>}
+                    {accounts.length > 0 && (
+                      <div className="px-2 py-1 text-xs text-muted-foreground border-t mt-1 pt-2">— حساب‌های من —</div>
+                    )}
                     {accounts.map((a) => (
                       <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                     ))}
