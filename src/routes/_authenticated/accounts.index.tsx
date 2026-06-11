@@ -19,11 +19,12 @@ export const Route = createFileRoute("/_authenticated/accounts/")({
 });
 
 function AccountsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
   const accountsQ = useQuery({
+    enabled: !!user,
     queryKey: ["accounts"],
     queryFn: async () => {
       const { data, error } = await supabase.from("accounts").select("*").order("created_at", { ascending: false });
