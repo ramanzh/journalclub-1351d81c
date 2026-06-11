@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
-import { accountStats, accountTypeLabel, buildEquityCurve, formatNumber, formatPercent, type Account, type Trade } from "@/lib/trade-utils";
+import { accountStats, accountTypeLabel, buildEquityCurve, formatPercent, type Account, type Trade } from "@/lib/trade-utils";
 import { EquityCurve } from "@/components/equity-curve";
 import { CountUp } from "@/components/count-up";
 import { Loader2, Trash2 } from "lucide-react";
