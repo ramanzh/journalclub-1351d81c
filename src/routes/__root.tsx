@@ -38,9 +38,19 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
+
+  const retry = async () => {
+    try {
+      await queryClient.resetQueries();
+      await router.invalidate();
+    } finally {
+      reset();
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -49,15 +59,18 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           خطایی رخ داده است. لطفاً دوباره تلاش کنید.
         </p>
+        {error?.message && (
+          <p className="mt-2 text-xs text-muted-foreground/70 font-mono break-all">{error.message}</p>
+        )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
-            onClick={() => { router.invalidate(); reset(); }}
+            onClick={retry}
             className="rounded-md gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground"
           >
             تلاش دوباره
           </button>
-          <a href="/" className="rounded-md border border-input px-4 py-2 text-sm font-medium">
-            خانه
+          <a href="/dashboard" className="rounded-md border border-input px-4 py-2 text-sm font-medium">
+            بازگشت به داشبورد
           </a>
         </div>
       </div>

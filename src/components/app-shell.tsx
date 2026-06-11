@@ -1,6 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ListOrdered, PlusCircle, TrendingUp, LogOut, Wallet, BookOpen } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { LayoutDashboard, ListOrdered, PlusCircle, TrendingUp, Home, Wallet, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ReactNode } from "react";
 
@@ -16,10 +15,7 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth" });
-  };
+  const goHome = () => navigate({ to: "/dashboard" });
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
@@ -46,8 +42,8 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
           })}
         </nav>
         <div className="p-3 border-t border-sidebar-border">
-          <Button variant="ghost" className="w-full justify-start gap-2" onClick={signOut}>
-            <LogOut className="size-4" /> خروج
+          <Button variant="ghost" className="w-full justify-start gap-2" onClick={goHome}>
+            <Home className="size-4" /> بازگشت به داشبورد
           </Button>
         </div>
       </aside>
@@ -62,8 +58,8 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
                   <Icon className="size-4" />
                 </Link>
               ))}
-              <Button variant="ghost" size="icon" onClick={signOut}>
-                <LogOut className="size-4" />
+              <Button variant="ghost" size="icon" onClick={goHome} title="بازگشت به داشبورد">
+                <Home className="size-4" />
               </Button>
             </div>
           </div>
