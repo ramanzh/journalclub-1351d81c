@@ -19,11 +19,12 @@ export const Route = createFileRoute("/_authenticated/accounts/")({
 });
 
 function AccountsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
   const accountsQ = useQuery({
+    enabled: !!user,
     queryKey: ["accounts"],
     queryFn: async () => {
       const { data, error } = await supabase.from("accounts").select("*").order("created_at", { ascending: false });
@@ -33,6 +34,7 @@ function AccountsPage() {
     retry: 1,
   });
   const tradesQ = useQuery({
+    enabled: !!user,
     queryKey: ["trades", "all"],
     queryFn: async () => {
       const { data, error } = await supabase.from("trades").select("*");
@@ -45,25 +47,28 @@ function AccountsPage() {
   const accounts = accountsQ.data ?? [];
   const trades = tradesQ.data ?? [];
   const loadError = accountsQ.error || tradesQ.error;
+  const isLoading = authLoading || accountsQ.isLoading || tradesQ.isLoading;
 
   return (
     <AppShell title="حساب‌ها">
       <div className="flex items-center justify-between mb-5">
         <p className="text-sm text-muted-foreground">{formatNumber(accounts.length, 0)} حساب</p>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { if (v && !user) return; setOpen(v); }}>
           <DialogTrigger asChild>
-            <Button className="gradient-primary text-primary-foreground gap-2">
+            <Button disabled={!user} className="gradient-primary text-primary-foreground gap-2">
               <Plus className="size-4" /> حساب جدید
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>افزودن حساب جدید</DialogTitle></DialogHeader>
-            <NewAccountForm userId={user!.id} onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["accounts"] }); }} />
+            {user ? (
+              <NewAccountForm userId={user.id} onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["accounts"] }); }} />
+            ) : null}
           </DialogContent>
         </Dialog>
       </div>
 
-      {accountsQ.isLoading ? (
+      {isLoading ? (
         <div className="grid place-items-center py-24"><Loader2 className="size-6 animate-spin text-primary" /></div>
       ) : loadError ? (
         <div className="gradient-card rounded-2xl border border-destructive/40 p-8 text-center space-y-3">

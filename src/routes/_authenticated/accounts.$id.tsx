@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
-import { accountStats, accountTypeLabel, buildEquityCurve, formatNumber, formatPercent, type Account, type Trade } from "@/lib/trade-utils";
+import { accountStats, accountTypeLabel, buildEquityCurve, formatPercent, type Account, type Trade } from "@/lib/trade-utils";
 import { EquityCurve } from "@/components/equity-curve";
 import { CountUp } from "@/components/count-up";
 import { Loader2, Trash2 } from "lucide-react";
@@ -63,12 +63,12 @@ function AccountPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Stat label="موجودی فعلی" value={s.currentBalance} decimals={2} />
-        <Stat label="رشد" value={s.growthPct} decimals={2} suffix="٪" colored />
+        <Stat label="موجودی اولیه" value={s.initialBalance} decimals={2} />
         <Stat label="نرخ برد" value={s.winRate} decimals={1} suffix="٪" />
         <Stat label="تعداد معاملات" value={s.total} decimals={0} />
-        <Stat label="موجودی اولیه" value={s.initialBalance} decimals={2} />
         <Stat label="میانگین ریسک" value={s.avgRisk} decimals={2} suffix="٪" />
-        <Stat label="میانگین بازده" value={s.avgReturnPct} decimals={2} suffix="٪" colored />
+        <Stat label="ثبات ریسک" value={s.riskConsistency} decimals={0} suffix="٪" />
+        <Stat label="انضباط ریسک" value={s.riskDiscipline} decimals={0} suffix="٪" />
         <Stat label="معاملات بسته" value={s.closed} decimals={0} />
       </div>
 
@@ -90,8 +90,8 @@ function AccountPage() {
                   <span className={`size-2 rounded-full ${t.side === "buy" ? "bg-primary" : "bg-destructive"}`} />
                   <span className="font-medium" dir="ltr">{t.asset_name}</span>
                 </div>
-                <span className={`num font-semibold ${(t.profit_loss_percent ?? 0) >= 0 ? "text-primary" : "text-destructive"}`}>
-                  {t.profit_loss_percent === null ? "باز" : formatPercent(t.profit_loss_percent)}
+                <span className="num font-semibold text-muted-foreground text-xs">
+                  {t.risk_percent === null || t.risk_percent === undefined ? "—" : `ریسک ${formatPercent(t.risk_percent)}`}
                 </span>
               </Link>
             ))}
