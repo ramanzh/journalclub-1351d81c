@@ -63,12 +63,12 @@ function AccountPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Stat label="موجودی فعلی" value={s.currentBalance} decimals={2} />
-        <Stat label="رشد" value={s.growthPct} decimals={2} suffix="٪" colored />
+        <Stat label="موجودی اولیه" value={s.initialBalance} decimals={2} />
         <Stat label="نرخ برد" value={s.winRate} decimals={1} suffix="٪" />
         <Stat label="تعداد معاملات" value={s.total} decimals={0} />
-        <Stat label="موجودی اولیه" value={s.initialBalance} decimals={2} />
         <Stat label="میانگین ریسک" value={s.avgRisk} decimals={2} suffix="٪" />
-        <Stat label="میانگین بازده" value={s.avgReturnPct} decimals={2} suffix="٪" colored />
+        <Stat label="ثبات ریسک" value={s.riskConsistency} decimals={0} suffix="٪" />
+        <Stat label="انضباط ریسک" value={s.riskDiscipline} decimals={0} suffix="٪" />
         <Stat label="معاملات بسته" value={s.closed} decimals={0} />
       </div>
 
