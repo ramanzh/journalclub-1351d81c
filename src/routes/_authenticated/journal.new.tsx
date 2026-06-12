@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/lib/use-auth";
 import { RichEditor } from "@/components/rich-editor";
+import { JournalImages } from "@/components/journal-images";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ function NewEntry() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   if (!user) return null;
@@ -28,7 +30,10 @@ function NewEntry() {
     e.preventDefault();
     setSaving(true);
     const { error } = await supabase.from("journal_entries").insert({
-      user_id: user.id, title: title.trim(), content,
+      user_id: user.id,
+      title: title.trim(),
+      content,
+      image_urls: images,
     });
     setSaving(false);
     if (error) return toast.error("ذخیره ناموفق", { description: error.message });
@@ -46,6 +51,10 @@ function NewEntry() {
         <div className="space-y-2">
           <Label>محتوا</Label>
           <RichEditor value={content} onChange={setContent} userId={user.id} />
+        </div>
+        <div className="space-y-2">
+          <Label>تصاویر</Label>
+          <JournalImages userId={user.id} value={images} onChange={setImages} />
         </div>
         <div className="flex gap-3">
           <Button type="submit" disabled={saving} className="gradient-primary text-primary-foreground px-8">
