@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/lib/use-auth";
 import { RichEditor } from "@/components/rich-editor";
+import { JournalImages } from "@/components/journal-images";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ function EditEntry() {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -36,7 +38,11 @@ function EditEntry() {
   });
 
   useEffect(() => {
-    if (data) { setTitle(data.title); setContent(data.content); }
+    if (data) {
+      setTitle(data.title ?? "");
+      setContent(data.content ?? "");
+      setImages(Array.isArray(data.image_urls) ? data.image_urls : []);
+    }
   }, [data]);
 
   if (!user) return null;
@@ -46,7 +52,11 @@ function EditEntry() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("journal_entries").update({ title: title.trim(), content }).eq("id", id);
+    const { error } = await supabase.from("journal_entries").update({
+      title: title.trim(),
+      content,
+      image_urls: images,
+    }).eq("id", id);
     setSaving(false);
     if (error) return toast.error("ذخیره ناموفق", { description: error.message });
     toast.success("به‌روزرسانی شد");
@@ -77,6 +87,10 @@ function EditEntry() {
           <div className="space-y-2">
             <Label>محتوا</Label>
             <RichEditor value={content} onChange={setContent} userId={user.id} />
+          </div>
+          <div className="space-y-2">
+            <Label>تصاویر</Label>
+            <JournalImages userId={user.id} value={images} onChange={setImages} />
           </div>
           <div className="flex gap-3">
             <Button type="submit" disabled={saving} className="gradient-primary text-primary-foreground px-8">

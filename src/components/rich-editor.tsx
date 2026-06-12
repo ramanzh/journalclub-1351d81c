@@ -6,7 +6,7 @@ import { Bold, Italic, Heading2, List, ListOrdered, Link as LinkIcon, ImagePlus,
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 export function RichEditor({
   value,
@@ -14,6 +14,7 @@ export function RichEditor({
   userId,
 }: { value: string; onChange: (html: string) => void; userId: string }) {
   const fileInput = useRef<HTMLInputElement>(null);
+  const initialized = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -30,6 +31,15 @@ export function RichEditor({
       },
     },
   });
+
+  // Sync content once external value loads (e.g. when fetching an existing entry)
+  useEffect(() => {
+    if (!editor || initialized.current) return;
+    if (value && value.length > 0 && value !== editor.getHTML()) {
+      editor.commands.setContent(value, { emitUpdate: false });
+      initialized.current = true;
+    }
+  }, [editor, value]);
 
   if (!editor) return null;
 

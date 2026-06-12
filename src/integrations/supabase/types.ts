@@ -19,9 +19,13 @@ export type Database = {
           account_type: Database["public"]["Enums"]["account_type"]
           broker: string | null
           created_at: string
+          daily_drawdown_limit: number | null
           id: string
           initial_balance: number
+          max_drawdown_limit: number | null
           name: string
+          profit_target_1: number | null
+          profit_target_2: number | null
           updated_at: string
           user_id: string
         }
@@ -29,9 +33,13 @@ export type Database = {
           account_type?: Database["public"]["Enums"]["account_type"]
           broker?: string | null
           created_at?: string
+          daily_drawdown_limit?: number | null
           id?: string
           initial_balance?: number
+          max_drawdown_limit?: number | null
           name: string
+          profit_target_1?: number | null
+          profit_target_2?: number | null
           updated_at?: string
           user_id: string
         }
@@ -39,9 +47,13 @@ export type Database = {
           account_type?: Database["public"]["Enums"]["account_type"]
           broker?: string | null
           created_at?: string
+          daily_drawdown_limit?: number | null
           id?: string
           initial_balance?: number
+          max_drawdown_limit?: number | null
           name?: string
+          profit_target_1?: number | null
+          profit_target_2?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -78,6 +90,7 @@ export type Database = {
           entry_date: string
           id: string
           image_url: string | null
+          image_urls: string[]
           title: string
           updated_at: string
           user_id: string
@@ -88,6 +101,7 @@ export type Database = {
           entry_date?: string
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           title: string
           updated_at?: string
           user_id: string
@@ -98,6 +112,7 @@ export type Database = {
           entry_date?: string
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           title?: string
           updated_at?: string
           user_id?: string

@@ -4,12 +4,22 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/lib/use-auth";
-import { accountStats, accountTypeLabel, formatNumber, formatPercent, type Account, type Trade } from "@/lib/trade-utils";
+import {
+  accountHealth,
+  accountStatusLabel,
+  accountTypeLabel,
+  formatNumber,
+  formatPercent,
+  type Account,
+  type AccountStatus,
+  type Trade,
+} from "@/lib/trade-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { Plus, Wallet, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,6 +27,13 @@ export const Route = createFileRoute("/_authenticated/accounts/")({
   head: () => ({ meta: [{ title: "حساب‌ها | ژورنال کلاب" }] }),
   component: AccountsPage,
 });
+
+const statusStyle: Record<AccountStatus, string> = {
+  active: "bg-muted text-foreground border-border",
+  target1: "bg-primary/15 text-primary border-primary/30",
+  target2: "bg-primary/25 text-primary border-primary/40",
+  failed: "bg-destructive/15 text-destructive border-destructive/40",
+};
 
 function AccountsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -59,7 +76,7 @@ function AccountsPage() {
               <Plus className="size-4" /> حساب جدید
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>افزودن حساب جدید</DialogTitle></DialogHeader>
             {user ? (
               <NewAccountForm userId={user.id} onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["accounts"] }); }} />
@@ -84,7 +101,8 @@ function AccountsPage() {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {accounts.map((a) => {
-            const s = accountStats(a, trades);
+            const h = accountHealth(a, trades);
+            const showStatus = a.account_type !== "demo";
             return (
               <Link key={a.id} to="/accounts/$id" params={{ id: a.id }}
                 className="gradient-card rounded-2xl border border-border/60 p-5 hover:border-primary/40 transition group">
@@ -95,12 +113,32 @@ function AccountsPage() {
                   </div>
                   <ArrowLeft className="size-4 text-muted-foreground group-hover:text-primary transition" />
                 </div>
+
+                {showStatus && (
+                  <div className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold mb-3 ${statusStyle[h.status]}`}>
+                    {accountStatusLabel[h.status]}
+                  </div>
+                )}
+
                 <div className="space-y-2 text-sm">
-                  <Row label="موجودی فعلی" value={formatNumber(s.currentBalance, 2)} />
-                  <Row label="موجودی اولیه" value={formatNumber(s.initialBalance, 2)} muted />
-                  <Row label="رشد" value={formatPercent(s.growthPct)} pn={s.growthPct} />
-                  <Row label="نرخ برد" value={formatPercent(s.winRate, 1)} />
-                  <Row label="تعداد معاملات" value={formatNumber(s.total, 0)} muted />
+                  <Row label="موجودی فعلی" value={formatNumber(h.currentBalance, 2)} />
+                  <Row label="موجودی اولیه" value={formatNumber(h.initialBalance, 2)} muted />
+                  <Row label="رشد" value={formatPercent(h.growthPct)} pn={h.growthPct} />
+                  {h.drawdownLimit != null && (
+                    <>
+                      <Row label="افت استفاده‌شده" value={formatPercent(h.maxDrawdown, 2)} pn={-h.maxDrawdown} />
+                      <Row label="افت باقی‌مانده" value={formatPercent(h.drawdownRemaining ?? 0, 2)} />
+                    </>
+                  )}
+                  {h.target != null && h.targetProgress != null && (
+                    <div className="pt-2">
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>پیشرفت تارگت</span>
+                        <span className="num">{formatPercent(h.targetProgress, 0)}</span>
+                      </div>
+                      <Progress value={h.targetProgress} className="h-1.5" />
+                    </div>
+                  )}
                 </div>
               </Link>
             );
@@ -126,7 +164,13 @@ function NewAccountForm({ userId, onDone }: { userId: string; onDone: () => void
   const [type, setType] = useState<Account["account_type"]>("demo");
   const [balance, setBalance] = useState("");
   const [broker, setBroker] = useState("");
+  const [dailyDD, setDailyDD] = useState("");
+  const [maxDD, setMaxDD] = useState("");
+  const [t1, setT1] = useState("");
+  const [t2, setT2] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const num = (s: string) => (s.trim() ? parseFloat(s) : null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,12 +181,18 @@ function NewAccountForm({ userId, onDone }: { userId: string; onDone: () => void
       account_type: type,
       initial_balance: parseFloat(balance) || 0,
       broker: broker.trim() || null,
+      daily_drawdown_limit: type === "prop" ? num(dailyDD) : null,
+      max_drawdown_limit: type === "prop" || type === "real" ? num(maxDD) : null,
+      profit_target_1: type === "prop" ? num(t1) : null,
+      profit_target_2: type === "prop" ? num(t2) : null,
     });
     setSaving(false);
     if (error) return toast.error("ثبت ناموفق", { description: error.message });
     toast.success("حساب اضافه شد");
     onDone();
   };
+
+  const sanitize = (v: string) => v.replace(/[^\d.]/g, "");
 
   return (
     <form onSubmit={submit} className="space-y-4">
@@ -163,12 +213,41 @@ function NewAccountForm({ userId, onDone }: { userId: string; onDone: () => void
       </div>
       <div className="space-y-2">
         <Label>موجودی اولیه *</Label>
-        <Input value={balance} onChange={(e) => setBalance(e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" required placeholder="100000" dir="ltr" />
+        <Input value={balance} onChange={(e) => setBalance(sanitize(e.target.value))} inputMode="decimal" required placeholder="100000" dir="ltr" />
       </div>
       <div className="space-y-2">
         <Label>بروکر / پراپ فرم (اختیاری)</Label>
         <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="FTMO, Binance, IC Markets..." />
       </div>
+
+      {type === "prop" && (
+        <div className="grid grid-cols-2 gap-3 rounded-xl border border-border/60 p-3 bg-muted/20">
+          <div className="space-y-2">
+            <Label className="text-xs">حد افت روزانه (٪)</Label>
+            <Input value={dailyDD} onChange={(e) => setDailyDD(sanitize(e.target.value))} inputMode="decimal" placeholder="5" dir="ltr" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">حد افت کل (٪)</Label>
+            <Input value={maxDD} onChange={(e) => setMaxDD(sanitize(e.target.value))} inputMode="decimal" placeholder="10" dir="ltr" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">تارگت ۱ (٪)</Label>
+            <Input value={t1} onChange={(e) => setT1(sanitize(e.target.value))} inputMode="decimal" placeholder="8" dir="ltr" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">تارگت ۲ (٪)</Label>
+            <Input value={t2} onChange={(e) => setT2(sanitize(e.target.value))} inputMode="decimal" placeholder="5" dir="ltr" />
+          </div>
+        </div>
+      )}
+
+      {type === "real" && (
+        <div className="rounded-xl border border-border/60 p-3 bg-muted/20 space-y-2">
+          <Label className="text-xs">حد افت کل (٪)</Label>
+          <Input value={maxDD} onChange={(e) => setMaxDD(sanitize(e.target.value))} inputMode="decimal" placeholder="20" dir="ltr" />
+        </div>
+      )}
+
       <Button type="submit" disabled={saving} className="w-full gradient-primary text-primary-foreground">
         {saving ? <Loader2 className="size-4 animate-spin" /> : "ثبت حساب"}
       </Button>
