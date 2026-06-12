@@ -193,3 +193,74 @@ export function accountStats(account: Account, trades: Trade[]) {
     initialBalance: account.initial_balance,
   };
 }
+
+export type AccountStatus = "active" | "target1" | "target2" | "failed";
+
+export const accountStatusLabel: Record<AccountStatus, string> = {
+  active: "فعال",
+  target1: "تارگت ۱ رد شد",
+  target2: "تارگت ۲ رد شد",
+  failed: "ناموفق",
+};
+
+export function accountHealth(account: Account, trades: Trade[]) {
+  const own = trades
+    .filter((t) => t.account_id === account.id && t.profit_loss !== null)
+    .sort((a, b) => new Date(a.trade_date).getTime() - new Date(b.trade_date).getTime());
+
+  const initial = Number(account.initial_balance) || 0;
+  let balance = initial;
+  let peak = initial;
+  let maxDD = 0;
+
+  // Daily drawdown tracking
+  const dayMap = new Map<string, { start: number; low: number }>();
+  for (const t of own) {
+    const key = new Date(t.trade_date).toISOString().slice(0, 10);
+    if (!dayMap.has(key)) dayMap.set(key, { start: balance, low: balance });
+    balance += t.profit_loss ?? 0;
+    if (balance > peak) peak = balance;
+    const dd = peak > 0 ? ((peak - balance) / peak) * 100 : 0;
+    if (dd > maxDD) maxDD = dd;
+    const d = dayMap.get(key)!;
+    if (balance < d.low) d.low = balance;
+  }
+
+  let maxDailyDD = 0;
+  for (const d of dayMap.values()) {
+    const dd = d.start > 0 ? ((d.start - d.low) / d.start) * 100 : 0;
+    if (dd > maxDailyDD) maxDailyDD = dd;
+  }
+
+  const currentBalance = balance;
+  const growthPct = initial > 0 ? ((currentBalance - initial) / initial) * 100 : 0;
+
+  let status: AccountStatus = "active";
+  if (account.account_type === "prop") {
+    if (account.daily_drawdown_limit != null && maxDailyDD >= account.daily_drawdown_limit) status = "failed";
+    else if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) status = "failed";
+    else if (account.profit_target_2 != null && growthPct >= account.profit_target_2) status = "target2";
+    else if (account.profit_target_1 != null && growthPct >= account.profit_target_1) status = "target1";
+  } else if (account.account_type === "real") {
+    if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) status = "failed";
+  }
+
+  const ddLimit = account.max_drawdown_limit ?? null;
+  const drawdownRemaining = ddLimit != null ? Math.max(0, ddLimit - maxDD) : null;
+
+  const target = account.profit_target_2 ?? account.profit_target_1 ?? null;
+  const targetProgress = target != null && target > 0 ? Math.max(0, Math.min(100, (growthPct / target) * 100)) : null;
+
+  return {
+    status,
+    currentBalance,
+    initialBalance: initial,
+    growthPct,
+    maxDrawdown: maxDD,
+    maxDailyDrawdown: maxDailyDD,
+    drawdownLimit: ddLimit,
+    drawdownRemaining,
+    target,
+    targetProgress,
+  };
+}
