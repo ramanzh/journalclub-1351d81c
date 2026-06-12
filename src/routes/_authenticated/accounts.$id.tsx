@@ -61,7 +61,9 @@ function AccountPage() {
 
   const trades = tradesQ.data ?? [];
   const s = accountStats(account, trades);
-  const curve = buildEquityCurve(trades, account.initial_balance);
+  const h = accountHealth(account, trades);
+  const curve = buildEquityCurve(trades.filter((t) => t.account_id === account.id), account.initial_balance);
+  const showRules = account.account_type !== "demo";
 
   const handleDelete = async () => {
     if (!confirm("حذف این حساب؟ معاملات بدون حساب باقی می‌مانند.")) return;
@@ -73,16 +75,47 @@ function AccountPage() {
 
   return (
     <AppShell title={account.name}>
-      <div className="flex items-center justify-between mb-5">
-        <p className="text-sm text-muted-foreground">{accountTypeLabel[account.account_type]}{account.broker ? ` • ${account.broker}` : ""}</p>
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">{accountTypeLabel[account.account_type]}{account.broker ? ` • ${account.broker}` : ""}</p>
+          {showRules && (
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusStyle[h.status]}`}>
+              {accountStatusLabel[h.status]}
+            </span>
+          )}
+        </div>
         <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive">
           <Trash2 className="size-4 ml-2" /> حذف
         </Button>
       </div>
 
+      {showRules && (h.drawdownLimit != null || account.daily_drawdown_limit != null || h.target != null) && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {h.drawdownLimit != null && (
+            <>
+              <Stat label="افت استفاده‌شده" value={h.maxDrawdown} decimals={2} suffix="٪" />
+              <Stat label="افت باقی‌مانده" value={h.drawdownRemaining ?? 0} decimals={2} suffix="٪" />
+            </>
+          )}
+          {account.daily_drawdown_limit != null && (
+            <Stat label="بیشترین افت روزانه" value={h.maxDailyDrawdown} decimals={2} suffix="٪" />
+          )}
+          {h.target != null && (
+            <div className="gradient-card rounded-2xl border border-border/60 p-4">
+              <div className="text-xs text-muted-foreground mb-2">پیشرفت تارگت ({formatPercent(h.target, 0)})</div>
+              <div className="text-xl font-bold num mb-2">
+                <CountUp value={h.targetProgress ?? 0} decimals={0} suffix="٪" />
+              </div>
+              <Progress value={h.targetProgress ?? 0} className="h-1.5" />
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Stat label="موجودی فعلی" value={s.currentBalance} decimals={2} />
+        <Stat label="موجودی فعلی" value={h.currentBalance} decimals={2} />
         <Stat label="موجودی اولیه" value={s.initialBalance} decimals={2} />
+        <Stat label="رشد" value={h.growthPct} decimals={2} suffix="٪" colored />
         <Stat label="نرخ برد" value={s.winRate} decimals={1} suffix="٪" />
         <Stat label="تعداد معاملات" value={s.total} decimals={0} />
         <Stat label="میانگین ریسک" value={s.avgRisk} decimals={2} suffix="٪" />
