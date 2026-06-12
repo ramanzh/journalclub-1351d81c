@@ -6,7 +6,7 @@ import { Bold, Italic, Heading2, List, ListOrdered, Link as LinkIcon, ImagePlus,
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 export function RichEditor({
   value,
