@@ -185,16 +185,19 @@ function Landing() {
               </Link>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "دمو", color: "from-muted-foreground/30 to-muted-foreground/5" },
-                { label: "پراپ فرم", color: "from-primary/40 to-primary/5" },
-                { label: "واقعی", color: "from-chart-3/40 to-chart-3/5" },
-              ].map((a) => (
-                <div key={a.label} className={`rounded-2xl border border-border/40 p-4 bg-gradient-to-b ${a.color} hover:scale-105 transition-transform`}>
-                  <Wallet className="size-5 text-primary mb-2" />
-                  <div className="text-xs text-muted-foreground">حساب</div>
-                  <div className="font-bold">{a.label}</div>
-                </div>
+             {[
+               { label: "دمو", Icon: Wallet },
+               { label: "پراپ فرم", Icon: Wallet },
+               { label: "واقعی", Icon: Wallet },
+             ].map((a) => (
+               <div
+                 key={a.label}
+                 className="group rounded-2xl border border-border/40 p-4 bg-gradient-to-b from-muted/20 to-muted/5 hover:from-primary/30 hover:to-primary/5 hover:border-primary/40 hover:scale-105 transition-all duration-300 cursor-pointer"
+               >
+                 <Wallet className="size-5 text-muted-foreground mb-2 group-hover:text-primary transition-colors duration-300" />
+                 <div className="text-xs text-muted-foreground">حساب</div>
+                 <div className="font-bold group-hover:text-primary transition-colors duration-300">{a.label}</div>
+          </div>
               ))}
             </div>
           </div>
