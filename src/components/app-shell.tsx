@@ -9,8 +9,8 @@ const nav = [
   { to: "/dashboard", label: "داشبورد", Icon: LayoutDashboard },
   { to: "/accounts", label: "حساب‌ها", Icon: Wallet },
   { to: "/trades", label: "معاملات", Icon: ListOrdered },
-  { to: "/journal", label: "ژورنال", Icon: BookOpen },
   { to: "/trades/new", label: "معامله جدید", Icon: PlusCircle },
+  { to: "/journal", label: "ژورنال", Icon: BookOpen },
 ] as const;
 
 // لوگوی جدید کندل‌استیک
