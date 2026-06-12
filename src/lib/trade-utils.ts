@@ -31,6 +31,10 @@ export type Account = {
   account_type: "demo" | "prop" | "real";
   initial_balance: number;
   broker: string | null;
+  daily_drawdown_limit: number | null;
+  max_drawdown_limit: number | null;
+  profit_target_1: number | null;
+  profit_target_2: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -41,6 +45,7 @@ export type JournalEntry = {
   title: string;
   content: string;
   image_url: string | null;
+  image_urls: string[] | null;
   entry_date: string;
   created_at: string;
   updated_at: string;
