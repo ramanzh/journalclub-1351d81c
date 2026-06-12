@@ -2,12 +2,31 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
-import { accountStats, accountTypeLabel, buildEquityCurve, formatPercent, type Account, type Trade } from "@/lib/trade-utils";
+import {
+  accountStats,
+  accountHealth,
+  accountStatusLabel,
+  accountTypeLabel,
+  buildEquityCurve,
+  formatNumber,
+  formatPercent,
+  type Account,
+  type AccountStatus,
+  type Trade,
+} from "@/lib/trade-utils";
 import { EquityCurve } from "@/components/equity-curve";
 import { CountUp } from "@/components/count-up";
+import { Progress } from "@/components/ui/progress";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+const statusStyle: Record<AccountStatus, string> = {
+  active: "bg-muted text-foreground border-border",
+  target1: "bg-primary/15 text-primary border-primary/30",
+  target2: "bg-primary/25 text-primary border-primary/40",
+  failed: "bg-destructive/15 text-destructive border-destructive/40",
+};
 
 export const Route = createFileRoute("/_authenticated/accounts/$id")({
   head: () => ({ meta: [{ title: "حساب | ژورنال کلاب" }] }),
