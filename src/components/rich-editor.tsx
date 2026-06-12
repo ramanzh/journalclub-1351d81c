@@ -35,10 +35,10 @@ export function RichEditor({
   // Sync content once external value loads (e.g. when fetching an existing entry)
   useEffect(() => {
     if (!editor || initialized.current) return;
-    if (value && value !== editor.getHTML()) {
+    if (value && value.length > 0 && value !== editor.getHTML()) {
       editor.commands.setContent(value, { emitUpdate: false });
+      initialized.current = true;
     }
-    if (value !== undefined) initialized.current = true;
   }, [editor, value]);
 
   if (!editor) return null;
