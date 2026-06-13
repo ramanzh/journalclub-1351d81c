@@ -74,9 +74,9 @@ export function SetupTagPicker({
         })}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <button type="button" className="px-3 py-1.5 rounded-full text-xs border border-dashed border-border/60 inline-flex items-center gap-1 hover:bg-accent/40">
-              <Settings className="size-3" /> مدیریت تگ‌ها
-            </button>
+            <button type="button" className="px-3 py-1.5 rounded-full text-xs border border-dashed border-border/60 inline-flex items-center gap-1 hover:bg-accent/40 transition">
+  <Plus className="size-3" /> تگ جدید / مدیریت
+</button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>مدیریت تگ‌های ستاپ</DialogTitle></DialogHeader>
