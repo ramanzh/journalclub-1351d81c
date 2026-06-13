@@ -262,7 +262,7 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             </Select>
           </Field>
           <div className="md:col-span-2">
-            <Field label="ارز / ابزار" required>
+            <Field label="ارز" required>
               <InstrumentPicker market={f.market} value={f.asset_name} onChange={(v) => set("asset_name", v)} userId={userId} />
             </Field>
           </div>
