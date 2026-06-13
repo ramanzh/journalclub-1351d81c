@@ -1,87 +1,80 @@
-# Multi-Account Trading Workspace
+# Major Trading Analytics Upgrade — Implementation Plan
 
-Transform the app from single-table trade journal into a full trader workspace with accounts, equity curves, a free-form journal, an instrument picker with favorites, and percentage-based performance everywhere.
+A large feature set across DB, trade form, analytics, and a new calendar page. I'll deliver it in one cohesive migration + UI pass while keeping the existing Persian RTL dark theme.
 
-## 1. Database changes (one migration)
+## 1. Database Migration
 
-New tables (all with GRANT to authenticated + service_role, RLS scoped to `auth.uid()`):
+New tables and columns:
 
-- `accounts` — `id, user_id, name, account_type ('demo'|'prop'|'real'), initial_balance numeric, broker text null, created_at, updated_at`
-- `journal_entries` — `id, user_id, title, content text (rich HTML), image_url text null, entry_date timestamptz, created_at, updated_at`
-- `favorite_instruments` — `id, user_id, market ('forex'|'crypto'|'stock'), symbol text, created_at` + unique `(user_id, market, symbol)`
+- `trades.setup_tags text[]` (default `{}`)
+- `trades.session text` (`london` | `newyork` | `asia` | `overlap` | null)
+- `trades.checklist jsonb` (default `{}`) — `{ itemKey: boolean }`
+- Expanded enums for emotions (stored as plain text; validated client-side)
 
-Alter `trades`:
-- Add `account_id uuid null references accounts(id) on delete set null` (nullable so users can log trades without an account)
-- Add `risk_percent numeric null` (for risk display)
-- Add `profit_loss_percent numeric null` — computed by trigger: `profit_loss / account.initial_balance * 100` when account_id set, else null
+New user-scoped tables:
+- `setup_tags` — `id, user_id, name, is_default bool, created_at`
+- `checklist_items` — `id, user_id, key, label, is_default bool, sort_order, created_at`
 
-New storage bucket: `journal-images` (private, RLS by user folder).
+Each new table gets: GRANTs to `authenticated` + `service_role`, RLS enabled, "users manage own" policy, `updated_at` trigger where applicable.
 
-## 2. New routes
+Default tags (FVG, SMT, Liquidity Sweep, Breakout, Reversal, Trend Following, S&R, Range, Scalping, Swing) and default checklist items (Trend confirmed, Setup confirmed, Risk within plan, SL defined, Entry follows strategy, Market conditions OK) are seeded lazily per user on first visit via a server-side helper (not migration — keeps it per-user).
 
-```
-src/routes/_authenticated/
-  accounts.index.tsx        — list/create accounts (cards)
-  accounts.$id.tsx          — single account: stats + equity curve + its trades
-  journal.index.tsx         — notes list + search + sort
-  journal.new.tsx           — create note (rich editor)
-  journal.$id.tsx           — edit/view note
-  dashboard.tsx             — redesigned (global equity curve)
-  trades.new.tsx            — adds account selector + new instrument picker
-  trades.index.tsx          — show %, account badge
-```
+## 2. Trade Form Updates (`src/components/trade-form.tsx`)
 
-Nav in `app-shell`: داشبورد · حساب‌ها · معاملات · ژورنال.
+Add four new field groups:
+- **Setup Tags** multi-select chips (with inline "manage tags" dialog: add/edit/delete custom tags).
+- **Session** select (London / New York / Asia / Overlap).
+- **Emotions Before/After** expanded preset chips (Calm, Confident, Fearful, FOMO, Overconfident, Frustrated, Revenge Trading, Impulsive / Happy, Neutral, Regret, Frustrated, Confident, Angry).
+- **Pre-Trade Checklist** — checkbox list rendered from `checklist_items`, stored as `{ key: boolean }` on the trade.
 
-## 3. Equity curve
+## 3. Analytics Library (`src/lib/trade-utils.ts`)
 
-Replace monthly bar chart with `recharts` `LineChart` (Area+Line, smooth, green stroke).
-Build series client-side: sort closed trades by `trade_date`, running balance starts at `initial_balance` (or sum of all accounts' initial balances on global dashboard), each point = balance after that trade.
+Add pure functions consumed by dashboards:
+- `setupStats(trades)` → per-tag: trades, winRate, avgPL%, avgRisk%
+- `sessionStats(trades)` → per-session: trades, winRate, avgRisk, growth%
+- `emotionStats(trades, phase)` → per-emotion: winRate, count
+- `checklistStats(trades, items)` → withFull vs partial winRate, most-ignored items, discipline score (mean completion %)
 
-## 4. Instrument picker (`src/components/instrument-picker.tsx`)
+## 4. New Routes & Components
 
-- Receives `market`; renders curated list from a constants file (`src/lib/instruments.ts` — the lists from the spec).
-- Heart toggle per item → upserts/deletes `favorite_instruments`.
-- Favorites pinned to top, separator, rest alphabetical.
-- Also allows free-text entry for custom symbols.
+- `src/routes/_authenticated/analytics.tsx` — tabs: Setups | Sessions | Psychology | Checklist. Bar charts via recharts + ranked tables.
+- `src/routes/_authenticated/calendar.tsx` — monthly grid (Persian months via `Intl`), color-coded days by daily PnL, day-click popover showing trades + notes + summary. Filters: account, market, setup.
+- Sidebar additions in `app-shell.tsx`: Calendar, Analytics.
 
-## 5. Trade form fixes
+## 5. Custom Tag / Checklist Management
 
-- Rename label "نام دارایی" → "ارز / ابزار".
-- Replace text input with `<InstrumentPicker>`.
-- Exit price placeholder `"0.00"` (currently `"باز"`).
-- New "حساب" select (optional, لیست accounts + "بدون حساب").
-- Optional "ریسک (%)" input.
+Inline manage dialogs inside trade form (lightweight) + dedicated section on Analytics page for full CRUD.
 
-## 6. Percentage-based performance
+## Technical Details
 
-`trade-utils.ts`:
-- `computeStats` uses `profit_loss_percent` when present, falls back to `profit_loss / initial_balance` if account loaded.
-- New helpers: `formatPercent(n)`, `accountStats(account, trades)` returning `{ currentBalance, growthPct, winRate, total, avgRisk, avgReturnPct }`.
+- Setup tags stored as `text[]` on trades (denormalized) — fast filtering, no join.
+- Sessions stored as plain text — easy enum expansion later.
+- Checklist completion % = completedCount/totalItems at submit time, stored in jsonb so historical items remain accurate even if user edits master list.
+- All charts use existing `recharts`; reuse `gradient-card` / token colors.
+- Calendar built without new deps using `date-fns-jalali`... actually keep it dep-free: compute Persian month grid with `Intl.DateTimeFormat('fa-IR-u-ca-persian')` + manual day iteration on Gregorian dates, labeling with Persian digits.
 
-Dashboard cards and trades table show `+5.0%` / `-2.4%` (green/red). Raw $ kept only in trade detail page as secondary text.
+## Files
 
-## 7. Journal page
+**Migration:** 1 new SQL file (schema + RLS + grants).
 
-- Rich editor: use `@tiptap/react` + `@tiptap/starter-kit` (already lightweight) with toolbar (bold/italic/heading/list/link).
-- Image upload to `journal-images` bucket, inserted as `<img>`.
-- List: card per entry with title, date, snippet (stripped HTML, 160 chars), search input filters client-side.
-- Sort: date desc/asc toggle.
+**Edit:**
+- `src/integrations/supabase/types.ts` (after migration regen)
+- `src/components/trade-form.tsx`
+- `src/lib/trade-utils.ts`
+- `src/components/app-shell.tsx`
+- `src/routes/_authenticated/dashboard.tsx` (small: link to analytics)
 
-## 8. Theme/RTL
+**Create:**
+- `src/components/setup-tag-picker.tsx`
+- `src/components/checklist-picker.tsx`
+- `src/components/emotion-picker.tsx`
+- `src/routes/_authenticated/analytics.tsx`
+- `src/routes/_authenticated/calendar.tsx`
+- `src/lib/seed-defaults.ts` (per-user default tags/checklist seeding)
 
-No theme change — keep existing black/green/red tokens. All new components use semantic tokens. New pages wrapped in `<AppShell>`.
+## Out of Scope (this turn)
 
-## Technical notes
+- Drag-reorder for checklist items (sort_order editable via simple number input only).
+- Export of analytics to PDF/CSV.
 
-- New deps: `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-image`, `@tiptap/extension-link`.
-- Trigger update on trades: extend `compute_trade_pl()` to also set `profit_loss_percent` when `account_id` + initial_balance available.
-- Use `useAuth()` hook everywhere for `user.id`.
-- All queries through browser supabase client with RLS (no server fns needed).
-- Storage bucket created via `supabase--storage_create_bucket`; RLS policies on `storage.objects` restrict to `auth.uid()` folder prefix.
-
-## Out of scope (confirm if you want these too)
-
-- Editing existing trades to assign them to a new account retroactively (will work via existing edit form once account selector exists).
-- Multi-currency accounts / FX conversion.
-- Exporting reports.
+Ready to build on approval.

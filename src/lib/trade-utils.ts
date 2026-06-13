@@ -22,6 +22,9 @@ export type Trade = {
   trade_date: string;
   created_at: string;
   updated_at: string;
+  setup_tags: string[];
+  session: Session | null;
+  checklist: Record<string, boolean>;
 };
 
 export type Account = {
@@ -57,6 +60,68 @@ export type FavoriteInstrument = {
   market: Trade["market"];
   symbol: string;
 };
+
+export type SetupTag = {
+  id: string;
+  user_id: string;
+  name: string;
+  is_default: boolean;
+  created_at: string;
+};
+
+export type ChecklistItem = {
+  id: string;
+  user_id: string;
+  key: string;
+  label: string;
+  is_default: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
+export const SESSIONS = ["london", "newyork", "asia", "overlap"] as const;
+export type Session = (typeof SESSIONS)[number];
+export const sessionLabel: Record<Session, string> = {
+  london: "لندن",
+  newyork: "نیویورک",
+  asia: "آسیا",
+  overlap: "همپوشانی",
+};
+
+export const EMOTIONS_BEFORE = [
+  "calm", "confident", "fearful", "fomo", "overconfident", "frustrated", "revenge", "impulsive",
+] as const;
+export const EMOTIONS_AFTER = [
+  "happy", "neutral", "regret", "frustrated", "confident", "angry",
+] as const;
+export const emotionLabel: Record<string, string> = {
+  calm: "آرام",
+  confident: "مطمئن",
+  fearful: "ترسیده",
+  fomo: "FOMO",
+  overconfident: "بیش‌ازحد مطمئن",
+  frustrated: "ناامید",
+  revenge: "انتقامی",
+  impulsive: "احساسی",
+  happy: "خوشحال",
+  neutral: "خنثی",
+  regret: "پشیمان",
+  angry: "عصبانی",
+};
+
+export const DEFAULT_SETUP_TAGS = [
+  "FVG", "SMT", "Liquidity Sweep", "Breakout", "Reversal",
+  "Trend Following", "Support & Resistance", "Range", "Scalping", "Swing Trade",
+];
+
+export const DEFAULT_CHECKLIST: { key: string; label: string }[] = [
+  { key: "trend", label: "تأیید روند" },
+  { key: "setup", label: "تأیید ستاپ" },
+  { key: "risk", label: "ریسک در محدوده پلن" },
+  { key: "sl", label: "حد ضرر مشخص شده" },
+  { key: "entry", label: "ورود طبق استراتژی" },
+  { key: "market", label: "شرایط بازار مناسب" },
+];
 
 export const formatNumber = (n: number | null | undefined, frac = 2) => {
   if (n === null || n === undefined || isNaN(Number(n))) return "—";
@@ -103,7 +168,6 @@ export function computeStats(trades: Trade[], accounts: Account[] = []) {
   const totalPL = closed.reduce((s, t) => s + (t.profit_loss ?? 0), 0);
   const winRate = closed.length ? (wins.length / closed.length) * 100 : 0;
 
-  // Percentage returns per trade — prefer stored profit_loss_percent
   const accountMap = new Map(accounts.map((a) => [a.id, a]));
   const percents = closed.map((t) => {
     if (t.profit_loss_percent !== null && t.profit_loss_percent !== undefined) return t.profit_loss_percent;
@@ -161,7 +225,6 @@ export function computeStats(trades: Trade[], accounts: Account[] = []) {
   };
 }
 
-// Build equity curve: running balance points over time
 export function buildEquityCurve(trades: Trade[], initialBalance: number) {
   const closed = [...trades]
     .filter((t) => t.profit_loss !== null)
@@ -195,7 +258,6 @@ export function accountStats(account: Account, trades: Trade[]) {
 }
 
 export type AccountStatus = "active" | "target1" | "target2" | "failed";
-
 export const accountStatusLabel: Record<AccountStatus, string> = {
   active: "فعال",
   target1: "تارگت ۱ رد شد",
@@ -213,7 +275,6 @@ export function accountHealth(account: Account, trades: Trade[]) {
   let peak = initial;
   let maxDD = 0;
 
-  // Daily drawdown tracking
   const dayMap = new Map<string, { start: number; low: number }>();
   for (const t of own) {
     const key = new Date(t.trade_date).toISOString().slice(0, 10);
@@ -247,7 +308,6 @@ export function accountHealth(account: Account, trades: Trade[]) {
 
   const ddLimit = account.max_drawdown_limit ?? null;
   const drawdownRemaining = ddLimit != null ? Math.max(0, ddLimit - maxDD) : null;
-
   const target = account.profit_target_2 ?? account.profit_target_1 ?? null;
   const targetProgress = target != null && target > 0 ? Math.max(0, Math.min(100, (growthPct / target) * 100)) : null;
 
@@ -262,5 +322,110 @@ export function accountHealth(account: Account, trades: Trade[]) {
     drawdownRemaining,
     target,
     targetProgress,
+  };
+}
+
+// ---- Advanced analytics ----
+
+const tradePct = (t: Trade, accountMap: Map<string, Account>) => {
+  if (t.profit_loss_percent != null) return t.profit_loss_percent;
+  const acc = t.account_id ? accountMap.get(t.account_id) : null;
+  if (acc && acc.initial_balance > 0 && t.profit_loss != null) {
+    return (t.profit_loss / acc.initial_balance) * 100;
+  }
+  return null;
+};
+
+export function setupStats(trades: Trade[], accounts: Account[] = []) {
+  const accountMap = new Map(accounts.map((a) => [a.id, a]));
+  const groups = new Map<string, Trade[]>();
+  for (const t of trades) {
+    for (const tag of t.setup_tags ?? []) {
+      if (!groups.has(tag)) groups.set(tag, []);
+      groups.get(tag)!.push(t);
+    }
+  }
+  const result = [...groups.entries()].map(([name, list]) => {
+    const closed = list.filter((t) => t.profit_loss !== null);
+    const wins = closed.filter((t) => (t.profit_loss ?? 0) > 0).length;
+    const winRate = closed.length ? (wins / closed.length) * 100 : 0;
+    const pcts = closed.map((t) => tradePct(t, accountMap)).filter((v): v is number => v != null);
+    const avgPL = pcts.length ? pcts.reduce((s, v) => s + v, 0) / pcts.length : 0;
+    const risks = list.map((t) => t.risk_percent).filter((v): v is number => v != null);
+    const avgRisk = risks.length ? risks.reduce((s, v) => s + v, 0) / risks.length : 0;
+    return { name, trades: list.length, winRate, avgPL, avgRisk };
+  });
+  return result.sort((a, b) => b.winRate - a.winRate);
+}
+
+export function sessionStats(trades: Trade[], accounts: Account[] = []) {
+  const accountMap = new Map(accounts.map((a) => [a.id, a]));
+  return SESSIONS.map((sess) => {
+    const list = trades.filter((t) => t.session === sess);
+    const closed = list.filter((t) => t.profit_loss !== null);
+    const wins = closed.filter((t) => (t.profit_loss ?? 0) > 0).length;
+    const winRate = closed.length ? (wins / closed.length) * 100 : 0;
+    const risks = list.map((t) => t.risk_percent).filter((v): v is number => v != null);
+    const avgRisk = risks.length ? risks.reduce((s, v) => s + v, 0) / risks.length : 0;
+    const pcts = closed.map((t) => tradePct(t, accountMap)).filter((v): v is number => v != null);
+    const growth = pcts.reduce((s, v) => s + v, 0);
+    return { session: sess, label: sessionLabel[sess], trades: list.length, winRate, avgRisk, growth };
+  });
+}
+
+export function emotionStats(trades: Trade[], phase: "before" | "after") {
+  const groups = new Map<string, Trade[]>();
+  for (const t of trades) {
+    const key = phase === "before" ? t.emotion_before : t.emotion_after;
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(t);
+  }
+  const list = [...groups.entries()].map(([key, items]) => {
+    const closed = items.filter((t) => t.profit_loss !== null);
+    const wins = closed.filter((t) => (t.profit_loss ?? 0) > 0).length;
+    const losses = closed.filter((t) => (t.profit_loss ?? 0) < 0).length;
+    const winRate = closed.length ? (wins / closed.length) * 100 : 0;
+    const lossRate = closed.length ? (losses / closed.length) * 100 : 0;
+    return { key, label: emotionLabel[key] ?? key, count: items.length, winRate, lossRate };
+  });
+  return list.sort((a, b) => b.count - a.count);
+}
+
+export function checklistStats(trades: Trade[], items: ChecklistItem[]) {
+  const closed = trades.filter((t) => t.profit_loss !== null);
+  const totalItems = items.length || 1;
+
+  const withFull = closed.filter((t) => {
+    const c = t.checklist ?? {};
+    return items.every((it) => c[it.key]);
+  });
+  const without = closed.filter((t) => {
+    const c = t.checklist ?? {};
+    return !items.every((it) => c[it.key]);
+  });
+  const wr = (arr: Trade[]) =>
+    arr.length ? (arr.filter((t) => (t.profit_loss ?? 0) > 0).length / arr.length) * 100 : 0;
+
+  const ignored = items.map((it) => {
+    const ignoredCount = trades.filter((t) => !(t.checklist ?? {})[it.key]).length;
+    return { key: it.key, label: it.label, ignoredCount };
+  }).sort((a, b) => b.ignoredCount - a.ignoredCount);
+
+  const discipline = trades.length
+    ? (trades.reduce((sum, t) => {
+        const c = t.checklist ?? {};
+        const done = items.filter((it) => c[it.key]).length;
+        return sum + done / totalItems;
+      }, 0) / trades.length) * 100
+    : 0;
+
+  return {
+    fullWinRate: wr(withFull),
+    fullCount: withFull.length,
+    partialWinRate: wr(without),
+    partialCount: without.length,
+    mostIgnored: ignored,
+    discipline,
   };
 }

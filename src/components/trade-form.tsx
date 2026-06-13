@@ -14,8 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { InstrumentPicker } from "@/components/instrument-picker";
+import { SetupTagPicker } from "@/components/setup-tag-picker";
+import { ChecklistPicker } from "@/components/checklist-picker";
+import { EmotionPicker } from "@/components/emotion-picker";
 import { cn } from "@/lib/utils";
-import type { Account, Trade } from "@/lib/trade-utils";
+import { SESSIONS, sessionLabel, type Account, type Session, type Trade } from "@/lib/trade-utils";
+import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 
 type FormState = {
   asset_name: string;
@@ -35,6 +39,9 @@ type FormState = {
   notes: string;
   trade_date: Date;
   trade_time: string;
+  setup_tags: string[];
+  session: string;
+  checklist: Record<string, boolean>;
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -60,6 +67,9 @@ const toInitial = (t?: Trade): FormState => {
     notes: t?.notes ?? "",
     trade_date: d,
     trade_time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    setup_tags: t?.setup_tags ?? [],
+    session: (t?.session as string) ?? "",
+    checklist: (t?.checklist as Record<string, boolean>) ?? {},
   };
 };
 
@@ -71,6 +81,8 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(trade?.screenshot_url ?? null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => { ensureDefaultsSeeded(userId).catch(() => {}); }, [userId]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
 
@@ -119,6 +131,9 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       notes: f.notes || null,
       trade_date: d.toISOString(),
       screenshot_url: screenshotUrl,
+      setup_tags: f.setup_tags,
+      session: f.session || null,
+      checklist: f.checklist,
     };
 
     const { error } = trade
@@ -182,6 +197,17 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
               </SelectContent>
             </Select>
           </Field>
+          <Field label="سشن معاملاتی">
+            <Select value={f.session || "none"} onValueChange={(v) => set("session", v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="انتخاب سشن" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">—</SelectItem>
+                {SESSIONS.map((s) => (
+                  <SelectItem key={s} value={s}>{sessionLabel[s as Session]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
           <Field label="تاریخ و ساعت معامله">
             <div className="flex gap-2">
               <Popover>
@@ -209,6 +235,14 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
         </div>
       </Section>
 
+      <Section title="تگ‌های ستاپ">
+        <SetupTagPicker userId={userId} value={f.setup_tags} onChange={(v) => set("setup_tags", v)} />
+      </Section>
+
+      <Section title="چک‌لیست پیش از معامله">
+        <ChecklistPicker userId={userId} value={f.checklist} onChange={(v) => set("checklist", v)} />
+      </Section>
+
       <Section title="اسکرین‌شات نمودار">
         {screenshotUrl ? (
           <div className="relative inline-block">
@@ -229,23 +263,27 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       </Section>
 
       <Section title="ژورنال احساسی">
-        <div className="grid md:grid-cols-2 gap-4">
-          <Field label="احساس قبل از معامله">
-            <Textarea rows={3} value={f.emotion_before} onChange={(e) => set("emotion_before", e.target.value)} placeholder="چه حسی داشتی؟" />
-          </Field>
-          <Field label="احساس بعد از معامله">
-            <Textarea rows={3} value={f.emotion_after} onChange={(e) => set("emotion_after", e.target.value)} />
-          </Field>
-          <Field label="اشتباهات">
-            <Textarea rows={3} value={f.mistakes} onChange={(e) => set("mistakes", e.target.value)} placeholder="چه اشتباهی کردی؟" />
-          </Field>
-          <Field label="درس‌ها">
-            <Textarea rows={3} value={f.lessons} onChange={(e) => set("lessons", e.target.value)} placeholder="چه چیزی یاد گرفتی؟" />
-          </Field>
-          <div className="md:col-span-2">
-            <Field label="یادداشت‌های اضافی">
-              <Textarea rows={3} value={f.notes} onChange={(e) => set("notes", e.target.value)} />
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label>احساس قبل از معامله</Label>
+            <EmotionPicker phase="before" value={f.emotion_before} onChange={(v) => set("emotion_before", v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>احساس بعد از معامله</Label>
+            <EmotionPicker phase="after" value={f.emotion_after} onChange={(v) => set("emotion_after", v)} />
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <Field label="اشتباهات">
+              <Textarea rows={3} value={f.mistakes} onChange={(e) => set("mistakes", e.target.value)} placeholder="چه اشتباهی کردی؟" />
             </Field>
+            <Field label="درس‌ها">
+              <Textarea rows={3} value={f.lessons} onChange={(e) => set("lessons", e.target.value)} placeholder="چه چیزی یاد گرفتی؟" />
+            </Field>
+            <div className="md:col-span-2">
+              <Field label="یادداشت‌های اضافی">
+                <Textarea rows={3} value={f.notes} onChange={(e) => set("notes", e.target.value)} />
+              </Field>
+            </div>
           </div>
         </div>
       </Section>

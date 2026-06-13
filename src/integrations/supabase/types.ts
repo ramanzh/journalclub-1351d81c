@@ -59,6 +59,36 @@ export type Database = {
         }
         Relationships: []
       }
+      checklist_items: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          key: string
+          label: string
+          sort_order: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          key: string
+          label: string
+          sort_order?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       favorite_instruments: {
         Row: {
           created_at: string
@@ -140,10 +170,35 @@ export type Database = {
         }
         Relationships: []
       }
+      setup_tags: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trades: {
         Row: {
           account_id: string | null
           asset_name: string
+          checklist: Json
           created_at: string
           emotion_after: string | null
           emotion_before: string | null
@@ -159,6 +214,8 @@ export type Database = {
           profit_loss_percent: number | null
           risk_percent: number | null
           screenshot_url: string | null
+          session: string | null
+          setup_tags: string[]
           side: Database["public"]["Enums"]["trade_side"]
           stop_loss: number | null
           take_profit: number | null
@@ -169,6 +226,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           asset_name: string
+          checklist?: Json
           created_at?: string
           emotion_after?: string | null
           emotion_before?: string | null
@@ -184,6 +242,8 @@ export type Database = {
           profit_loss_percent?: number | null
           risk_percent?: number | null
           screenshot_url?: string | null
+          session?: string | null
+          setup_tags?: string[]
           side: Database["public"]["Enums"]["trade_side"]
           stop_loss?: number | null
           take_profit?: number | null
@@ -194,6 +254,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           asset_name?: string
+          checklist?: Json
           created_at?: string
           emotion_after?: string | null
           emotion_before?: string | null
@@ -209,6 +270,8 @@ export type Database = {
           profit_loss_percent?: number | null
           risk_percent?: number | null
           screenshot_url?: string | null
+          session?: string | null
+          setup_tags?: string[]
           side?: Database["public"]["Enums"]["trade_side"]
           stop_loss?: number | null
           take_profit?: number | null
