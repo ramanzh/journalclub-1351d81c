@@ -198,16 +198,8 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             </Select>
           </Field>
           <Field label="سشن معاملاتی">
-            <Select value={f.session || "none"} onValueChange={(v) => set("session", v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="انتخاب سشن" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">—</SelectItem>
-                {SESSIONS.map((s) => (
-                  <SelectItem key={s} value={s}>{sessionLabel[s as Session]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+  <SessionPicker value={f.session} onChange={(v) => set("session", v)} />
+</Field>
           <Field label="تاریخ و ساعت معامله">
             <div className="flex gap-2">
               <Popover>
