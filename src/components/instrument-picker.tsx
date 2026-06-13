@@ -72,8 +72,8 @@ export function InstrumentPicker({
         onClick={() => setOpen((p) => !p)}
       >
         <span className={cn("font-mono text-sm flex-1", !value && "text-muted-foreground")} dir="ltr">
-          {value || "انتخاب ابزار..."}
-        </span>
+  {value || <span className="font-sans text-muted-foreground text-sm" dir="rtl">انتخاب ارز</span>}
+</span>
         <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
       </div>
 
