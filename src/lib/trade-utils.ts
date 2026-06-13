@@ -79,12 +79,13 @@ export type ChecklistItem = {
   created_at: string;
 };
 
-export const SESSIONS = ["london", "newyork", "asia", "overlap"] as const;
+export const SESSIONS = ["london", "newyork", "tokyo", "sydney", "overlap"] as const;
 export type Session = (typeof SESSIONS)[number];
 export const sessionLabel: Record<Session, string> = {
   london: "لندن",
   newyork: "نیویورک",
-  asia: "آسیا",
+  tokyo: "توکیو",
+  sydney: "سیدنی",
   overlap: "همپوشانی",
 };
 
@@ -110,8 +111,7 @@ export const emotionLabel: Record<string, string> = {
 };
 
 export const DEFAULT_SETUP_TAGS = [
-  "FVG", "SMT", "Liquidity Sweep", "Breakout", "Reversal",
-  "Trend Following", "Support & Resistance", "Range", "Scalping", "Swing Trade",
+  "FVG", "Reversal", "Range", "Scalping",
 ];
 
 export const DEFAULT_CHECKLIST: { key: string; label: string }[] = [
