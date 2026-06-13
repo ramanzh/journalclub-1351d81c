@@ -62,86 +62,85 @@ export function InstrumentPicker({
 
   return (
     <div className="space-y-2 relative">
-      {/* فیلد اصلی */}
-      <div
-        className={cn(
-          "flex items-center justify-between gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-all duration-200",
-          open ? "border-primary ring-1 ring-primary/30" : "border-border/60 hover:border-primary/50",
-          "bg-background"
-        )}
-        onClick={() => setOpen((p) => !p)}
-      >
-        <span className={cn("font-mono text-sm flex-1", !value && "text-muted-foreground")} dir="ltr">
-  {value || <span className="font-sans text-muted-foreground text-sm" dir="rtl">انتخاب ارز</span>}
-</span>
-        <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
-      </div>
+      {/* تایپ دستی - بالا */}
+<Input
+  value={value}
+  onChange={(e) => onChange(e.target.value.toUpperCase())}
+  placeholder="تایپ کنید (مثلاً XAUUSD)"
+  dir="ltr"
+  className="text-sm h-9 bg-muted/20"
+/>
 
-      {/* دراپ‌داون */}
-      <div className={cn(
-        "absolute z-50 w-full rounded-xl border border-border/60 bg-background shadow-xl overflow-hidden transition-all duration-200 origin-top",
-        open ? "opacity-100 scale-y-100 translate-y-0" : "opacity-0 scale-y-95 -translate-y-2 pointer-events-none"
-      )}>
-        {/* سرچ */}
-        <div className="p-2 border-b border-border/40">
-          <div className="relative">
-            <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو..."
-              dir="ltr"
-              className="pr-8 h-8 text-sm bg-muted/30"
-              onClick={(e) => e.stopPropagation()}
-              autoFocus={open}
-            />
-          </div>
-        </div>
+{/* دکمه باز کردن لیست */}
+<div
+  className={cn(
+    "flex items-center justify-between gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-all duration-200",
+    open ? "border-primary ring-1 ring-primary/30" : "border-border/60 hover:border-primary/50",
+    "bg-background"
+  )}
+  onClick={() => setOpen((p) => !p)}
+>
+  <span className="text-sm text-muted-foreground flex-1" dir="rtl">
+    انتخاب از لیست
+  </span>
+  <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
+</div>
 
-        {/* لیست */}
-        <div className="max-h-52 overflow-y-auto p-1.5 space-y-0.5">
-          {/* تایپ دستی */}
-          {search && !INSTRUMENTS[market].includes(search.toUpperCase()) && (
-            <Row
-              symbol={search.toUpperCase()}
-              active={false}
-              fav={false}
-              custom
-              onSelect={() => { onChange(search.toUpperCase()); setOpen(false); setSearch(""); }}
-              onFav={() => {}}
-            />
-          )}
-
-          {list.favs.length > 0 && (
-            <>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1 flex items-center gap-1">
-                <Star className="size-3 fill-yellow-400 text-yellow-400" /> علاقه‌مندی‌ها
-              </div>
-              {list.favs.map((s) => (
-                <Row key={s} symbol={s} active={s === value} fav onSelect={() => handleSelect(s)} onFav={() => toggleFav(s)} />
-              ))}
-              <div className="h-px bg-border/40 my-1" />
-            </>
-          )}
-
-          {list.rest.length === 0 && list.favs.length === 0 && (
-            <div className="text-center text-xs text-muted-foreground py-6">نتیجه‌ای یافت نشد</div>
-          )}
-
-          {list.rest.map((s) => (
-            <Row key={s} symbol={s} active={s === value} fav={false} onSelect={() => handleSelect(s)} onFav={() => toggleFav(s)} />
-          ))}
-        </div>
-      </div>
-
-      {/* تایپ دستی زیر */}
+{/* دراپ‌داون */}
+<div className={cn(
+  "absolute z-50 w-full rounded-xl border border-border/60 bg-background shadow-xl overflow-hidden transition-all duration-200 origin-top",
+  open ? "opacity-100 scale-y-100 translate-y-0" : "opacity-0 scale-y-95 -translate-y-2 pointer-events-none"
+)}>
+  {/* سرچ */}
+  <div className="p-2 border-b border-border/40">
+    <div className="relative">
+      <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
       <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value.toUpperCase())}
-        placeholder="یا مستقیم تایپ کنید (مثلاً XAUUSD)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="جستجو..."
         dir="ltr"
-        className="text-sm h-8 bg-muted/20"
+        className="pr-8 h-8 text-sm bg-muted/30"
+        onClick={(e) => e.stopPropagation()}
+        autoFocus={open}
       />
+    </div>
+  </div>
+
+  {/* لیست */}
+  <div className="max-h-52 overflow-y-auto p-1.5 space-y-0.5">
+    {search && !INSTRUMENTS[market].includes(search.toUpperCase()) && (
+      <Row
+        symbol={search.toUpperCase()}
+        active={false}
+        fav={false}
+        custom
+        onSelect={() => { onChange(search.toUpperCase()); setOpen(false); setSearch(""); }}
+        onFav={() => {}}
+      />
+    )}
+
+    {list.favs.length > 0 && (
+      <>
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1 flex items-center gap-1">
+          <Star className="size-3 fill-yellow-400 text-yellow-400" /> علاقه‌مندی‌ها
+        </div>
+        {list.favs.map((s) => (
+          <Row key={s} symbol={s} active={s === value} fav onSelect={() => handleSelect(s)} onFav={() => toggleFav(s)} />
+        ))}
+        <div className="h-px bg-border/40 my-1" />
+      </>
+    )}
+
+    {list.rest.length === 0 && list.favs.length === 0 && (
+      <div className="text-center text-xs text-muted-foreground py-6">نتیجه‌ای یافت نشد</div>
+    )}
+
+    {list.rest.map((s) => (
+      <Row key={s} symbol={s} active={s === value} fav={false} onSelect={() => handleSelect(s)} onFav={() => toggleFav(s)} />
+    ))}
+  </div>
+</div>
     </div>
   );
 }
