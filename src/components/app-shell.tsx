@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ListOrdered, PlusCircle, Home, Wallet, BookOpen, LogOut } from "lucide-react";
+import { LayoutDashboard, ListOrdered, PlusCircle, Home, Wallet, BookOpen, LogOut, CalendarDays, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,6 +10,8 @@ const nav = [
   { to: "/accounts", label: "حساب‌ها", Icon: Wallet },
   { to: "/trades", label: "معاملات", Icon: ListOrdered },
   { to: "/trades/new", label: "معامله جدید", Icon: PlusCircle },
+  { to: "/calendar", label: "تقویم", Icon: CalendarDays },
+  { to: "/analytics", label: "تحلیل پیشرفته", Icon: BarChart3 },
   { to: "/journal", label: "ژورنال", Icon: BookOpen },
 ] as const;
 
