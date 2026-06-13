@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, Upload, X } from "lucide-react";
+import { CalendarIcon, Loader2, Upload, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -75,6 +75,84 @@ const toInitial = (t?: Trade): FormState => {
 
 const sanitizeNumber = (v: string) => v.replace(/[^\d.\-]/g, "");
 
+function SessionPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [customSessions, setCustomSessions] = useState<string[]>([]);
+  const [showInput, setShowInput] = useState(false);
+  const [newSession, setNewSession] = useState("");
+
+  const defaultSessions = SESSIONS.map((s) => ({ key: s, label: sessionLabel[s as Session] }));
+  const allSessions = [
+    ...defaultSessions,
+    ...customSessions.map((s) => ({ key: s, label: s })),
+  ];
+
+  const addSession = () => {
+    const name = newSession.trim();
+    if (!name || allSessions.some((s) => s.key === name)) return;
+    setCustomSessions((p) => [...p, name]);
+    setNewSession("");
+    setShowInput(false);
+    onChange(name);
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2 items-center">
+      <button
+        type="button"
+        onClick={() => onChange(value === "" ? "" : "")}
+        className={`px-3 py-1.5 rounded-full text-xs border transition-all duration-200 ${
+          value === ""
+            ? "bg-primary text-primary-foreground border-primary shadow-glow"
+            : "border-border/60 hover:bg-accent/50"
+        }`}
+      >
+        —
+      </button>
+      {allSessions.map(({ key, label }) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange(value === key ? "" : key)}
+          className={`px-3 py-1.5 rounded-full text-xs border transition-all duration-200 ${
+            value === key
+              ? "bg-primary text-primary-foreground border-primary shadow-glow scale-105"
+              : "border-border/60 hover:bg-accent/50 hover:scale-105"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+
+      {showInput ? (
+        <div className="flex items-center gap-1">
+          <Input
+            value={newSession}
+            onChange={(e) => setNewSession(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSession())}
+            placeholder="نام سشن..."
+            className="h-7 text-xs w-28"
+            autoFocus
+          />
+          <Button type="button" size="sm" className="h-7 px-2" onClick={addSession}>
+            <Plus className="size-3" />
+          </Button>
+          <Button type="button" size="sm" variant="ghost" className="h-7 px-2"
+            onClick={() => { setShowInput(false); setNewSession(""); }}>
+            ✕
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowInput(true)}
+          className="px-3 py-1.5 rounded-full text-xs border border-dashed border-border/60 inline-flex items-center gap-1 hover:bg-accent/40 transition"
+        >
+          <Plus className="size-3" /> سشن جدید
+        </button>
+      )}
+    </div>
+  );
+}
 export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) {
   const navigate = useNavigate();
   const [f, setF] = useState<FormState>(toInitial(trade));
