@@ -7,8 +7,9 @@ import { useAuth } from "@/lib/use-auth";
 import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 import {
   setupStats, sessionStats, emotionStats, checklistStats,
+  qualityStats, ruleStats,
   formatNumber, formatPercent,
-  type Account, type ChecklistItem, type Trade,
+  type Account, type ChecklistItem, type Trade, type TradingRule,
 } from "@/lib/trade-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
@@ -51,16 +52,29 @@ function AnalyticsPage() {
     enabled: !!user,
   });
 
+  const rulesQ = useQuery({
+    queryKey: ["trading_rules"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("trading_rules").select("*");
+      if (error) throw error;
+      return (data ?? []) as TradingRule[];
+    },
+    enabled: !!user,
+  });
+
   const trades = tradesQ.data ?? [];
   const accounts = accountsQ.data ?? [];
   const items = checklistQ.data ?? [];
-  const loading = tradesQ.isLoading || accountsQ.isLoading || checklistQ.isLoading;
+  const rules = rulesQ.data ?? [];
+  const loading = tradesQ.isLoading || accountsQ.isLoading || checklistQ.isLoading || rulesQ.isLoading;
 
   const setups = useMemo(() => setupStats(trades, accounts), [trades, accounts]);
   const sessions = useMemo(() => sessionStats(trades, accounts), [trades, accounts]);
   const emoB = useMemo(() => emotionStats(trades, "before"), [trades]);
   const emoA = useMemo(() => emotionStats(trades, "after"), [trades]);
   const chk = useMemo(() => checklistStats(trades, items), [trades, items]);
+  const qual = useMemo(() => qualityStats(trades, accounts), [trades, accounts]);
+  const rs = useMemo(() => ruleStats(trades, rules), [trades, rules]);
 
   return (
     <AppShell title="تحلیل پیشرفته">
@@ -68,11 +82,13 @@ function AnalyticsPage() {
         <div className="grid place-items-center py-24"><Loader2 className="size-6 animate-spin text-primary" /></div>
       ) : (
         <Tabs defaultValue="setups">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsList className="flex flex-wrap w-full gap-1 max-w-3xl">
             <TabsTrigger value="setups">ستاپ‌ها</TabsTrigger>
             <TabsTrigger value="sessions">سشن‌ها</TabsTrigger>
             <TabsTrigger value="psych">روان‌شناسی</TabsTrigger>
             <TabsTrigger value="checklist">چک‌لیست</TabsTrigger>
+            <TabsTrigger value="quality">کیفیت</TabsTrigger>
+            <TabsTrigger value="rules">قوانین</TabsTrigger>
           </TabsList>
 
           <TabsContent value="setups" className="mt-4 space-y-4">
@@ -136,6 +152,36 @@ function AnalyticsPage() {
             <Card title="مواردی که بیشتر نادیده گرفته شده‌اند">
               <Table head={["مورد", "دفعات نادیده‌گرفتن"]}
                 rows={chk.mostIgnored.map((i) => [i.label, formatNumber(i.ignoredCount, 0)])} />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="quality" className="mt-4 space-y-4">
+            <Card title="نرخ برد بر اساس کیفیت معامله">
+              <ChartBlock>
+                <BarChart data={qual.map((q) => ({ name: q.quality, winRate: Number(q.winRate.toFixed(1)) }))}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="winRate" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartBlock>
+            </Card>
+            <Card title="عملکرد به‌تفکیک کیفیت">
+              <Table head={["کیفیت", "تعداد", "نرخ برد", "میانگین سود"]}
+                rows={qual.map((q) => [q.quality, formatNumber(q.trades, 0), formatPercent(q.winRate, 1), formatPercent(q.avgPL)])} />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="rules" className="mt-4 space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <Stat label="امتیاز انضباط" value={`${rs.discipline}/100`} positive />
+              <Stat label="قوانین رعایت‌شده" value={formatPercent(rs.followedPct, 0)} positive />
+              <Stat label="قوانین نقض‌شده" value={formatPercent(rs.brokenPct, 0)} negative />
+            </div>
+            <Card title="آمار به‌تفکیک قانون">
+              <Table head={["قانون", "تعداد نقض", "تعداد رعایت"]}
+                rows={rs.perRule.map((p) => [p.title, formatNumber(p.brokenCount, 0), formatNumber(p.followedCount, 0)])} />
             </Card>
           </TabsContent>
         </Tabs>

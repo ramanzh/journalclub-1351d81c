@@ -17,8 +17,10 @@ import { InstrumentPicker } from "@/components/instrument-picker";
 import { SetupTagPicker } from "@/components/setup-tag-picker";
 import { ChecklistPicker } from "@/components/checklist-picker";
 import { EmotionPicker } from "@/components/emotion-picker";
+import { QualityPicker } from "@/components/quality-picker";
+import { BrokenRulesPicker } from "@/components/broken-rules-picker";
 import { cn } from "@/lib/utils";
-import { SESSIONS, sessionLabel, type Account, type Session, type Trade } from "@/lib/trade-utils";
+import { SESSIONS, sessionLabel, type Account, type Session, type Trade, type TradeQuality } from "@/lib/trade-utils";
 import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 
 type FormState = {
@@ -42,6 +44,8 @@ type FormState = {
   setup_tags: string[];
   session: string;
   checklist: Record<string, boolean>;
+  quality: TradeQuality | null;
+  broken_rules: string[];
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -70,6 +74,8 @@ const toInitial = (t?: Trade): FormState => {
     setup_tags: t?.setup_tags ?? [],
     session: (t?.session as string) ?? "",
     checklist: (t?.checklist as Record<string, boolean>) ?? {},
+    quality: (t?.quality as TradeQuality | null) ?? null,
+    broken_rules: t?.broken_rules ?? [],
   };
 };
 
@@ -212,6 +218,8 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       setup_tags: f.setup_tags,
       session: f.session || null,
       checklist: f.checklist,
+      quality: f.quality,
+      broken_rules: f.broken_rules,
     };
 
     const { error } = trade
@@ -311,6 +319,15 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
 
       <Section title="چک‌لیست پیش از معامله">
         <ChecklistPicker userId={userId} value={f.checklist} onChange={(v) => set("checklist", v)} />
+      </Section>
+
+      <Section title="کیفیت معامله">
+        <p className="text-xs text-muted-foreground mb-3">معامله را بر اساس کیفیت اجرا و تطبیق با پلن ارزیابی کن.</p>
+        <QualityPicker value={f.quality} onChange={(v) => set("quality", v)} />
+      </Section>
+
+      <Section title="قوانین نقض‌شده">
+        <BrokenRulesPicker value={f.broken_rules} onChange={(v) => set("broken_rules", v)} />
       </Section>
 
       <Section title="اسکرین‌شات نمودار">
