@@ -44,6 +44,8 @@ type FormState = {
   setup_tags: string[];
   session: string;
   checklist: Record<string, boolean>;
+  quality: TradeQuality | null;
+  broken_rules: string[];
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
