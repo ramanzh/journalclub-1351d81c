@@ -52,16 +52,29 @@ function AnalyticsPage() {
     enabled: !!user,
   });
 
+  const rulesQ = useQuery({
+    queryKey: ["trading_rules"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("trading_rules").select("*");
+      if (error) throw error;
+      return (data ?? []) as TradingRule[];
+    },
+    enabled: !!user,
+  });
+
   const trades = tradesQ.data ?? [];
   const accounts = accountsQ.data ?? [];
   const items = checklistQ.data ?? [];
-  const loading = tradesQ.isLoading || accountsQ.isLoading || checklistQ.isLoading;
+  const rules = rulesQ.data ?? [];
+  const loading = tradesQ.isLoading || accountsQ.isLoading || checklistQ.isLoading || rulesQ.isLoading;
 
   const setups = useMemo(() => setupStats(trades, accounts), [trades, accounts]);
   const sessions = useMemo(() => sessionStats(trades, accounts), [trades, accounts]);
   const emoB = useMemo(() => emotionStats(trades, "before"), [trades]);
   const emoA = useMemo(() => emotionStats(trades, "after"), [trades]);
   const chk = useMemo(() => checklistStats(trades, items), [trades, items]);
+  const qual = useMemo(() => qualityStats(trades, accounts), [trades, accounts]);
+  const rs = useMemo(() => ruleStats(trades, rules), [trades, rules]);
 
   return (
     <AppShell title="تحلیل پیشرفته">
