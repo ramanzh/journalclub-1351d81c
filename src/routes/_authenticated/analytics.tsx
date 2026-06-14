@@ -82,11 +82,13 @@ function AnalyticsPage() {
         <div className="grid place-items-center py-24"><Loader2 className="size-6 animate-spin text-primary" /></div>
       ) : (
         <Tabs defaultValue="setups">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsList className="flex flex-wrap w-full gap-1 max-w-3xl">
             <TabsTrigger value="setups">ستاپ‌ها</TabsTrigger>
             <TabsTrigger value="sessions">سشن‌ها</TabsTrigger>
             <TabsTrigger value="psych">روان‌شناسی</TabsTrigger>
             <TabsTrigger value="checklist">چک‌لیست</TabsTrigger>
+            <TabsTrigger value="quality">کیفیت</TabsTrigger>
+            <TabsTrigger value="rules">قوانین</TabsTrigger>
           </TabsList>
 
           <TabsContent value="setups" className="mt-4 space-y-4">
