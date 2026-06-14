@@ -154,6 +154,36 @@ function AnalyticsPage() {
                 rows={chk.mostIgnored.map((i) => [i.label, formatNumber(i.ignoredCount, 0)])} />
             </Card>
           </TabsContent>
+
+          <TabsContent value="quality" className="mt-4 space-y-4">
+            <Card title="نرخ برد بر اساس کیفیت معامله">
+              <ChartBlock>
+                <BarChart data={qual.map((q) => ({ name: q.quality, winRate: Number(q.winRate.toFixed(1)) }))}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="winRate" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartBlock>
+            </Card>
+            <Card title="عملکرد به‌تفکیک کیفیت">
+              <Table head={["کیفیت", "تعداد", "نرخ برد", "میانگین سود"]}
+                rows={qual.map((q) => [q.quality, formatNumber(q.trades, 0), formatPercent(q.winRate, 1), formatPercent(q.avgPL)])} />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="rules" className="mt-4 space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <Stat label="امتیاز انضباط" value={`${rs.discipline}/100`} positive />
+              <Stat label="قوانین رعایت‌شده" value={formatPercent(rs.followedPct, 0)} positive />
+              <Stat label="قوانین نقض‌شده" value={formatPercent(rs.brokenPct, 0)} negative />
+            </div>
+            <Card title="آمار به‌تفکیک قانون">
+              <Table head={["قانون", "تعداد نقض", "تعداد رعایت"]}
+                rows={rs.perRule.map((p) => [p.title, formatNumber(p.brokenCount, 0), formatNumber(p.followedCount, 0)])} />
+            </Card>
+          </TabsContent>
         </Tabs>
       )}
     </AppShell>
