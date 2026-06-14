@@ -7,8 +7,9 @@ import { useAuth } from "@/lib/use-auth";
 import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 import {
   setupStats, sessionStats, emotionStats, checklistStats,
+  qualityStats, ruleStats,
   formatNumber, formatPercent,
-  type Account, type ChecklistItem, type Trade,
+  type Account, type ChecklistItem, type Trade, type TradingRule,
 } from "@/lib/trade-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
