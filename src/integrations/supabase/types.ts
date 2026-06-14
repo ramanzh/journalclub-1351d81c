@@ -194,10 +194,50 @@ export type Database = {
         }
         Relationships: []
       }
+      trade_setups: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_urls: string[]
+          market: string | null
+          name: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_urls?: string[]
+          market?: string | null
+          name: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_urls?: string[]
+          market?: string | null
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trades: {
         Row: {
           account_id: string | null
           asset_name: string
+          broken_rules: string[]
           checklist: Json
           created_at: string
           emotion_after: string | null
@@ -212,6 +252,7 @@ export type Database = {
           position_size: number
           profit_loss: number | null
           profit_loss_percent: number | null
+          quality: string | null
           risk_percent: number | null
           screenshot_url: string | null
           session: string | null
@@ -226,6 +267,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           asset_name: string
+          broken_rules?: string[]
           checklist?: Json
           created_at?: string
           emotion_after?: string | null
@@ -240,6 +282,7 @@ export type Database = {
           position_size: number
           profit_loss?: number | null
           profit_loss_percent?: number | null
+          quality?: string | null
           risk_percent?: number | null
           screenshot_url?: string | null
           session?: string | null
@@ -254,6 +297,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           asset_name?: string
+          broken_rules?: string[]
           checklist?: Json
           created_at?: string
           emotion_after?: string | null
@@ -268,6 +312,7 @@ export type Database = {
           position_size?: number
           profit_loss?: number | null
           profit_loss_percent?: number | null
+          quality?: string | null
           risk_percent?: number | null
           screenshot_url?: string | null
           session?: string | null
@@ -288,6 +333,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trading_rules: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
