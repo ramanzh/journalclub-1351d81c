@@ -23,8 +23,18 @@ export const Route = createFileRoute("/_authenticated/analytics")({
   component: AnalyticsPage,
 });
 
-const PRIMARY = "hsl(var(--primary))";
-const MUTED = "hsl(var(--muted-foreground))";
+const BAR_COLOR = "#1D9E75";
+const BAR_COLOR_2 = "#60a5fa";
+const MUTED = "rgba(255,255,255,0.4)";
+const GRID = "rgba(255,255,255,0.06)";
+
+const tooltipStyle = {
+  background: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: 8,
+  color: "hsl(var(--foreground))",
+  fontSize: 12,
+};
 
 function AnalyticsPage() {
   const { user } = useAuth();
@@ -94,7 +104,6 @@ function AnalyticsPage() {
   return (
     <AppShell title="تحلیل پیشرفته">
       <Tabs defaultValue="setups">
-        {/* تب‌بار راست‌چین */}
         <div className="flex justify-end">
           <TabsList className="flex flex-wrap gap-1 h-auto p-1">
             <TabsTrigger value="setups">ستاپ‌ها</TabsTrigger>
@@ -111,16 +120,21 @@ function AnalyticsPage() {
           <Card title="عملکرد ستاپ‌ها (نرخ برد)">
             {setups.length === 0 ? <Empty /> : (
               <Chart>
-                <BarChart data={setups.map((s) => ({ name: s.name, winRate: +s.winRate.toFixed(1) }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: MUTED }} />
-                  <YAxis tick={{ fontSize: 11, fill: MUTED }} />
+                <BarChart
+                  data={setups.map((s) => ({ name: s.name, winRate: +s.winRate.toFixed(1) }))}
+                  barSize={36}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} width={32} />
                   <Tooltip
-                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }}
+                    cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                    contentStyle={tooltipStyle}
                     formatter={(v: number) => [`${v}٪`, "نرخ برد"]}
                   />
-                  <Bar dataKey="winRate" radius={[6, 6, 0, 0]}>
-                    {setups.map((_, i) => <Cell key={i} fill={PRIMARY} />)}
+                  <Bar dataKey="winRate" radius={[6, 6, 0, 0]} maxBarSize={40}>
+                    {setups.map((_, i) => <Cell key={i} fill={BAR_COLOR} />)}
                   </Bar>
                 </BarChart>
               </Chart>
@@ -144,23 +158,28 @@ function AnalyticsPage() {
         <TabsContent value="sessions" className="mt-4 space-y-4">
           <Card title="مقایسه سشن‌های معاملاتی">
             <Chart>
-              <BarChart data={sessions.map((s) => ({
-                name: s.label,
-                winRate: +s.winRate.toFixed(1),
-                growth: +s.growth.toFixed(2),
-              }))}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: MUTED }} />
-                <YAxis tick={{ fontSize: 11, fill: MUTED }} />
+              <BarChart
+                data={sessions.map((s) => ({
+                  name: s.label,
+                  winRate: +s.winRate.toFixed(1),
+                  growth: +s.growth.toFixed(2),
+                }))}
+                barSize={28}
+                margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} width={32} />
                 <Tooltip
-                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }}
+                  cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                  contentStyle={tooltipStyle}
                   formatter={(v: number, name: string) => [
                     `${v}${name === "winRate" ? "٪" : ""}`,
                     name === "winRate" ? "نرخ برد" : "رشد",
                   ]}
                 />
-                <Bar dataKey="winRate" fill={PRIMARY} radius={[6, 6, 0, 0]} />
-                <Bar dataKey="growth" fill="hsl(var(--chart-3))" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="winRate" fill={BAR_COLOR} radius={[6, 6, 0, 0]} maxBarSize={32} />
+                <Bar dataKey="growth" fill={BAR_COLOR_2} radius={[6, 6, 0, 0]} maxBarSize={32} />
               </BarChart>
             </Chart>
           </Card>
@@ -219,7 +238,6 @@ function AnalyticsPage() {
             <Table
               head={["مورد", "دفعات نادیده‌گرفتن"]}
               rows={chk.mostIgnored.map((i) => [i.label, formatNumber(i.ignoredCount, 0)])}
-              rtl
             />
           </Card>
         </TabsContent>
@@ -228,16 +246,21 @@ function AnalyticsPage() {
         <TabsContent value="quality" className="mt-4 space-y-4">
           <Card title="نرخ برد بر اساس کیفیت معامله">
             <Chart>
-              <BarChart data={qual.map((q) => ({ name: q.quality, winRate: +q.winRate.toFixed(1) }))}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: MUTED }} />
-                <YAxis tick={{ fontSize: 11, fill: MUTED }} />
+              <BarChart
+                data={qual.map((q) => ({ name: q.quality, winRate: +q.winRate.toFixed(1) }))}
+                barSize={36}
+                margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} width={32} />
                 <Tooltip
-                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }}
+                  cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                  contentStyle={tooltipStyle}
                   formatter={(v: number) => [`${v}٪`, "نرخ برد"]}
                 />
-                <Bar dataKey="winRate" radius={[6, 6, 0, 0]}>
-                  {qual.map((_, i) => <Cell key={i} fill={PRIMARY} />)}
+                <Bar dataKey="winRate" radius={[6, 6, 0, 0]} maxBarSize={40}>
+                  {qual.map((_, i) => <Cell key={i} fill={BAR_COLOR} />)}
                 </Bar>
               </BarChart>
             </Chart>
@@ -270,7 +293,6 @@ function AnalyticsPage() {
                 formatNumber(p.brokenCount, 0),
                 formatNumber(p.followedCount, 0),
               ])}
-              rtl
             />
           </Card>
         </TabsContent>
@@ -278,8 +300,6 @@ function AnalyticsPage() {
     </AppShell>
   );
 }
-
-// ── کامپوننت‌های کمکی ──────────────────────────────────────
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -292,7 +312,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 function Chart({ children }: { children: React.ReactElement }) {
   return (
-    <div style={{ width: "100%", height: 260 }}>
+    <div style={{ width: "100%", height: 240 }}>
       <ResponsiveContainer width="100%" height="100%">
         {children}
       </ResponsiveContainer>
@@ -304,13 +324,7 @@ function Empty() {
   return <p className="text-sm text-muted-foreground py-8 text-center">داده‌ای برای نمایش وجود ندارد.</p>;
 }
 
-function Table({
-  head, rows, rtl = false,
-}: {
-  head: string[];
-  rows: (string | number)[][];
-  rtl?: boolean;
-}) {
+function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) {
   if (!rows.length) return <Empty />;
   return (
     <div className="overflow-x-auto">
@@ -326,7 +340,7 @@ function Table({
           {rows.map((r, i) => (
             <tr key={i} className="border-b border-border/20 hover:bg-accent/20 transition">
               {r.map((c, j) => (
-                <td key={j} className={`py-2.5 px-3 ${j === 0 ? "font-medium" : "num text-right"}`}>
+                <td key={j} className={`py-2.5 px-3 ${j === 0 ? "font-medium text-right" : "num text-right"}`}>
                   {c}
                 </td>
               ))}
@@ -338,9 +352,7 @@ function Table({
   );
 }
 
-function Stat({
-  label, value, sub, positive, negative,
-}: {
+function Stat({ label, value, sub, positive, negative }: {
   label: string;
   value: string;
   sub?: string;
