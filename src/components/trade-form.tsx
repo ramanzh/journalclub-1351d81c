@@ -74,6 +74,8 @@ const toInitial = (t?: Trade): FormState => {
     setup_tags: t?.setup_tags ?? [],
     session: (t?.session as string) ?? "",
     checklist: (t?.checklist as Record<string, boolean>) ?? {},
+    quality: (t?.quality as TradeQuality | null) ?? null,
+    broken_rules: t?.broken_rules ?? [],
   };
 };
 
