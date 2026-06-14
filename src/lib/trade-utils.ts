@@ -1,3 +1,6 @@
+export type TradeQuality = "A+" | "A" | "B" | "C";
+export const TRADE_QUALITIES: TradeQuality[] = ["A+", "A", "B", "C"];
+
 export type Trade = {
   id: string;
   user_id: string;
@@ -25,6 +28,31 @@ export type Trade = {
   setup_tags: string[];
   session: Session | null;
   checklist: Record<string, boolean>;
+  quality: TradeQuality | null;
+  broken_rules: string[];
+};
+
+export type TradingRule = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TradeSetup = {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  market: string | null;
+  notes: string | null;
+  image_urls: string[];
+  created_at: string;
+  updated_at: string;
 };
 
 export type Account = {
