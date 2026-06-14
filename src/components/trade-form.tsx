@@ -218,6 +218,8 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       setup_tags: f.setup_tags,
       session: f.session || null,
       checklist: f.checklist,
+      quality: f.quality,
+      broken_rules: f.broken_rules,
     };
 
     const { error } = trade
