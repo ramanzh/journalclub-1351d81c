@@ -105,7 +105,7 @@ function SessionPicker({ value, onChange }: { value: string; onChange: (v: strin
     <div className="flex flex-wrap gap-2 items-center">
       <button
         type="button"
-        onClick={() => onChange(value === "" ? "" : "")}
+        onClick={() => onChange("")}
         className={`px-3 py-1.5 rounded-full text-xs border transition-all duration-200 ${
           value === ""
             ? "bg-primary text-primary-foreground border-primary shadow-glow"
@@ -159,6 +159,7 @@ function SessionPicker({ value, onChange }: { value: string; onChange: (v: strin
     </div>
   );
 }
+
 export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) {
   const navigate = useNavigate();
   const [f, setF] = useState<FormState>(toInitial(trade));
@@ -196,18 +197,47 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     const d = new Date(f.trade_date);
     d.setHours(hh || 0, mm || 0, 0, 0);
 
+    // ── محاسبه خودکار سود/زیان ──
+    const entryPrice = parseFloat(f.entry_price);
+    const exitPrice = f.exit_price ? parseFloat(f.exit_price) : null;
+    const positionSize = parseFloat(f.position_size);
+
+    let profit_loss: number | null = null;
+    let profit_loss_percent: number | null = null;
+
+    if (exitPrice !== null && !isNaN(entryPrice) && !isNaN(positionSize)) {
+      if (f.side === "buy") {
+        profit_loss = (exitPrice - entryPrice) * positionSize;
+      } else {
+        profit_loss = (entryPrice - exitPrice) * positionSize;
+      }
+      profit_loss = Number(profit_loss.toFixed(2));
+
+      const selectedAccount = (accounts ?? []).find(
+        (a) => a.id === (f.account_id === "none" ? "" : f.account_id)
+      );
+      if (selectedAccount && selectedAccount.initial_balance > 0) {
+        profit_loss_percent = Number(
+          ((profit_loss / selectedAccount.initial_balance) * 100).toFixed(4)
+        );
+      }
+    }
+    // ─────────────────────────────
+
     const payload = {
       user_id: userId,
       account_id: f.account_id === "none" ? null : f.account_id,
       asset_name: f.asset_name.trim(),
       market: f.market,
       side: f.side,
-      entry_price: parseFloat(f.entry_price),
-      exit_price: f.exit_price ? parseFloat(f.exit_price) : null,
+      entry_price: entryPrice,
+      exit_price: exitPrice,
       stop_loss: f.stop_loss ? parseFloat(f.stop_loss) : null,
       take_profit: f.take_profit ? parseFloat(f.take_profit) : null,
-      position_size: parseFloat(f.position_size),
+      position_size: positionSize,
       risk_percent: f.risk_percent ? parseFloat(f.risk_percent) : null,
+      profit_loss,
+      profit_loss_percent,
       emotion_before: f.emotion_before || null,
       emotion_after: f.emotion_after || null,
       mistakes: f.mistakes || null,
@@ -284,8 +314,8 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             </Select>
           </Field>
           <Field label="سشن معاملاتی">
-  <SessionPicker value={f.session} onChange={(v) => set("session", v)} />
-</Field>
+            <SessionPicker value={f.session} onChange={(v) => set("session", v)} />
+          </Field>
           <Field label="تاریخ و ساعت معامله">
             <div className="flex gap-2">
               <Popover>
