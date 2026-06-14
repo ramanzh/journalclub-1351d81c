@@ -244,7 +244,7 @@ function CalendarPage() {
                 <button
                   key={i}
                   type="button"
-                  onClick={() => !closed && setSelected(isSelected ? null : k)}
+                  onClick={() => setSelected(isSelected ? null : k)}
                   className={`
                     rounded-lg border p-1.5 text-right transition-all duration-150
                     ${closed
