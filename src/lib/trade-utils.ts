@@ -457,3 +457,36 @@ export function checklistStats(trades: Trade[], items: ChecklistItem[]) {
     discipline,
   };
 }
+
+export function qualityStats(trades: Trade[], accounts: Account[] = []) {
+  const accountMap = new Map(accounts.map((a) => [a.id, a]));
+  return TRADE_QUALITIES.map((q) => {
+    const list = trades.filter((t) => t.quality === q);
+    const closed = list.filter((t) => t.profit_loss !== null);
+    const wins = closed.filter((t) => (t.profit_loss ?? 0) > 0).length;
+    const winRate = closed.length ? (wins / closed.length) * 100 : 0;
+    const pcts = closed.map((t) => tradePct(t, accountMap)).filter((v): v is number => v != null);
+    const avgPL = pcts.length ? pcts.reduce((s, v) => s + v, 0) / pcts.length : 0;
+    return { quality: q, trades: list.length, winRate, avgPL };
+  });
+}
+
+export function ruleStats(trades: Trade[], rules: TradingRule[]) {
+  const totalRuleApplications = trades.length * Math.max(1, rules.length);
+  const totalBroken = trades.reduce((s, t) => s + (t.broken_rules?.length ?? 0), 0);
+  const followedPct = totalRuleApplications
+    ? Math.max(0, Math.min(100, ((totalRuleApplications - totalBroken) / totalRuleApplications) * 100))
+    : 100;
+  const brokenPct = 100 - followedPct;
+
+  const perRule = rules.map((r) => {
+    const brokenCount = trades.filter((t) => (t.broken_rules ?? []).includes(r.id)).length;
+    return { id: r.id, title: r.title, brokenCount, followedCount: trades.length - brokenCount };
+  }).sort((a, b) => b.brokenCount - a.brokenCount);
+
+  const mostBroken = perRule[0] ?? null;
+  // Discipline = followed% weighted, penalize compounding breaks
+  const discipline = Math.round(followedPct);
+
+  return { followedPct, brokenPct, perRule, mostBroken, discipline, totalBroken };
+}
