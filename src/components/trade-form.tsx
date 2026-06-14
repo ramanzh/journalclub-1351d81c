@@ -321,6 +321,15 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
         <ChecklistPicker userId={userId} value={f.checklist} onChange={(v) => set("checklist", v)} />
       </Section>
 
+      <Section title="کیفیت معامله">
+        <p className="text-xs text-muted-foreground mb-3">معامله را بر اساس کیفیت اجرا و تطبیق با پلن ارزیابی کن.</p>
+        <QualityPicker value={f.quality} onChange={(v) => set("quality", v)} />
+      </Section>
+
+      <Section title="قوانین نقض‌شده">
+        <BrokenRulesPicker value={f.broken_rules} onChange={(v) => set("broken_rules", v)} />
+      </Section>
+
       <Section title="اسکرین‌شات نمودار">
         {screenshotUrl ? (
           <div className="relative inline-block">
