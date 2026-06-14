@@ -17,8 +17,10 @@ import { InstrumentPicker } from "@/components/instrument-picker";
 import { SetupTagPicker } from "@/components/setup-tag-picker";
 import { ChecklistPicker } from "@/components/checklist-picker";
 import { EmotionPicker } from "@/components/emotion-picker";
+import { QualityPicker } from "@/components/quality-picker";
+import { BrokenRulesPicker } from "@/components/broken-rules-picker";
 import { cn } from "@/lib/utils";
-import { SESSIONS, sessionLabel, type Account, type Session, type Trade } from "@/lib/trade-utils";
+import { SESSIONS, sessionLabel, type Account, type Session, type Trade, type TradeQuality } from "@/lib/trade-utils";
 import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 
 type FormState = {
