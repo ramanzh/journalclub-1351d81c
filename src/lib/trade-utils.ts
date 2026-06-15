@@ -328,8 +328,8 @@ export function accountHealth(account: Account, trades: Trade[]) {
   if (account.account_type === "prop") {
     if (account.daily_drawdown_limit != null && maxDailyDD >= account.daily_drawdown_limit) status = "failed";
     else if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) status = "failed";
-    else if (account.profit_target_2 != null && growthPct >= account.profit_target_2) status = "target2";
-    else if (account.profit_target_1 != null && growthPct >= account.profit_target_1) status = "target1";
+    else if (account.profit_target_1 != null && growthPct >= account.profit_target_1 && (account.profit_target_2 == null || growthPct < account.profit_target_2)) status = "target1";
+else if (account.profit_target_2 != null && growthPct >= account.profit_target_2) status = "target2";
   } else if (account.account_type === "real") {
     if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) status = "failed";
   }
