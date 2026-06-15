@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/use-auth";
 import {
   accountStats,
   accountHealth,
-  accountStatusLabel,
   accountTypeLabel,
   buildEquityCurve,
   formatNumber,
@@ -25,9 +24,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { AccountForm } from "./accounts.index";
 
+// ترجمه اختصاصی و بهینه‌شده وضعیت‌های حساب برای نمایش روان در فرانت‌اند
+const customAccountStatusLabel: Record<AccountStatus, string> = {
+  active: "مرحله ۱ فعال",
+  target1: "تارگت ۱ پاس شد (مرحله ۲ فعال)",
+  target2: "چالش پاس شد 🎉",
+  failed: "ناموفق (فیلد شده)",
+};
+
 const statusStyle: Record<AccountStatus, string> = {
   active: "bg-muted text-foreground border-border",
-  target1: "bg-primary/15 text-primary border-primary/30",
+  target1: "bg-amber-500/15 text-amber-500 border-amber-500/30",
   target2: "bg-primary/25 text-primary border-primary/40",
   failed: "bg-destructive/15 text-destructive border-destructive/40",
 };
@@ -71,9 +78,8 @@ function AccountPage() {
   const curve = buildEquityCurve(trades.filter((t) => t.account_id === account.id), account.initial_balance);
   const showRules = account.account_type !== "demo";
 
-  // ✅ بررسی تارگت — target1 قبل از target2 چک میشه
-  const reachedTarget2 = account.profit_target_2 != null && h.growthPct >= account.profit_target_2;
-  const isLocked = reachedTarget2; // بعد از تارگت ۲ قفل میشه
+  // ✅ حساب زمانی قفل می‌شود که وضعیت خروجی از فرمول جدید ما رسماً "target2" شده باشد
+  const isLocked = account.account_type === "prop" && h.status === "target2";
 
   const handleDelete = async () => {
     if (!confirm("حذف این حساب؟ معاملات بدون حساب باقی می‌مانند.")) return;
@@ -90,18 +96,17 @@ function AccountPage() {
           <p className="text-sm text-muted-foreground">{accountTypeLabel[account.account_type]}{account.broker ? ` • ${account.broker}` : ""}</p>
           {showRules && (
             <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusStyle[h.status]}`}>
-              {accountStatusLabel[h.status]}
+              {customAccountStatusLabel[h.status]}
             </span>
           )}
-          {/* ✅ نشان قفل بودن حساب بعد از تارگت ۲ */}
+          {/* ✅ نشان قفل بودن حساب بعد از پاس شدن چالش */}
           {isLocked && (
             <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/10 text-primary px-2.5 py-1 text-[11px] font-semibold">
-              🎯 تارگت ۲ تکمیل شد — حساب قفل است
+              🎯 چالش تکمیل شد — حساب قفل است
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* ✅ دکمه ویرایش */}
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil className="size-4 ml-2" /> ویرایش
           </Button>
@@ -114,7 +119,7 @@ function AccountPage() {
       {/* ✅ هشدار قفل بودن حساب */}
       {isLocked && (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 mb-4 text-sm text-primary text-center">
-          این حساب به تارگت ۲ رسیده و قفل شده است. برای ثبت معامله جدید باید حساب جدید بسازید.
+          این حساب به تارگت نهایی رسیده و قفل شده است. برای ثبت معامله جدید باید حساب جدید بسازید.
         </div>
       )}
 
@@ -131,7 +136,13 @@ function AccountPage() {
           )}
           {h.target != null && (
             <div className="gradient-card rounded-2xl border border-border/60 p-4">
-              <div className="text-xs text-muted-foreground mb-2">پیشرفت تارگت ({formatPercent(h.target, 0)})</div>
+              {/* ✅ نمایش هوشمند عنوان نوار پیشرفت بر اساس مرحله جاری چالش */}
+              <div className="text-xs text-muted-foreground mb-2">
+                {account.account_type === "prop" && h.status === "target1" 
+                  ? `پیشرفت تارگت مرحله دو (${formatPercent(h.target, 0)})` 
+                  : `پیشرفت تارگت مرحله یک (${formatPercent(h.target, 0)})`
+                }
+              </div>
               <div className="text-xl font-bold num mb-2">
                 <CountUp value={h.targetProgress ?? 0} decimals={0} suffix="٪" />
               </div>
@@ -144,7 +155,7 @@ function AccountPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Stat label="موجودی فعلی" value={h.currentBalance} decimals={2} />
         <Stat label="موجودی اولیه" value={s.initialBalance} decimals={2} />
-        <Stat label="رشد" value={h.growthPct} decimals={2} suffix="٪" colored />
+        <Stat label="رشد کل حساب" value={h.growthPct} decimals={2} suffix="٪" colored />
         <Stat label="نرخ برد" value={s.winRate} decimals={1} suffix="٪" />
         <Stat label="تعداد معاملات" value={s.total} decimals={0} />
         <Stat label="میانگین ریسک" value={s.avgRisk} decimals={2} suffix="٪" />
@@ -161,7 +172,6 @@ function AccountPage() {
       <div className="gradient-card rounded-2xl border border-border/60 p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">معاملات حساب</h3>
-          {/* ✅ دکمه معامله جدید — فقط اگه قفل نباشه */}
           {!isLocked && (
             <Link to="/trades/new" className="text-xs text-primary hover:underline flex items-center gap-1">
               <LinkIcon className="size-3" /> معامله جدید
@@ -188,7 +198,6 @@ function AccountPage() {
         )}
       </div>
 
-      {/* ✅ دیالوگ ویرایش حساب */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>ویرایش حساب</DialogTitle></DialogHeader>
