@@ -325,18 +325,29 @@ export function accountHealth(account: Account, trades: Trade[]) {
   const growthPct = initial > 0 ? ((currentBalance - initial) / initial) * 100 : 0;
 
   let status: AccountStatus = "active";
-  if (account.account_type === "prop") {
-    if (account.daily_drawdown_limit != null && maxDailyDD >= account.daily_drawdown_limit) status = "failed";
-    else if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) status = "failed";
-    else if (account.profit_target_1 != null && growthPct >= account.profit_target_1 && (account.profit_target_2 == null || growthPct < account.profit_target_2)) status = "target1";
-else if (account.profit_target_2 != null && growthPct >= account.profit_target_2) status = "target2";
-  } else if (account.account_type === "real") {
+if (account.account_type === "prop") {
+  if (account.daily_drawdown_limit != null && maxDailyDD >= account.daily_drawdown_limit) {
+    status = "failed";
+  } else if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) {
+    status = "failed";
+  } else if (account.profit_target_2 != null && growthPct >= account.profit_target_2) {
+    status = "target2";
+  } else if (account.profit_target_1 != null && growthPct >= account.profit_target_1) {
+    // فقط اگه target2 وجود نداره یا بهش نرسیده
+    if (account.profit_target_2 == null || growthPct < account.profit_target_2) {
+      status = "target1";
+    }
+  }
+} else if (account.account_type === "real") {
     if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) status = "failed";
   }
 
   const ddLimit = account.max_drawdown_limit ?? null;
   const drawdownRemaining = ddLimit != null ? Math.max(0, ddLimit - maxDD) : null;
-  const target = account.profit_target_2 ?? account.profit_target_1 ?? null;
+  // target بر اساس وضعیت فعلی — اگه target1 زده شده، target2 نشون بده
+const target = status === "target1"
+  ? (account.profit_target_2 ?? account.profit_target_1 ?? null)
+  : (account.profit_target_2 ?? account.profit_target_1 ?? null);
   const targetProgress = target != null && target > 0 ? Math.max(0, Math.min(100, (growthPct / target) * 100)) : null;
 
   return {
