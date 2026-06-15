@@ -20,7 +20,8 @@ import { EmotionPicker } from "@/components/emotion-picker";
 import { QualityPicker } from "@/components/quality-picker";
 import { BrokenRulesPicker } from "@/components/broken-rules-picker";
 import { cn } from "@/lib/utils";
-import { SESSIONS, sessionLabel, type Account, type Session, type Trade, type TradeQuality } from "@/lib/trade-utils";
+// ✅ اضافه شدن accountHealth برای بررسی وضعیت لحظه‌ای حساب‌ها
+import { SESSIONS, sessionLabel, accountHealth, type Account, type Session, type Trade, type TradeQuality } from "@/lib/trade-utils";
 import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 
 type FormState = {
@@ -180,6 +181,16 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     },
   });
 
+  // ✅ اضافه شدن کوئری دریافت کل معاملات برای محاسبه دقیق وضعیت سلامت هر حساب
+  const { data: allTrades } = useQuery({
+    queryKey: ["all-trades-for-form"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("trades").select("*");
+      if (error) throw error;
+      return data as Trade[];
+    },
+  });
+
   const handleUpload = async (file: File) => {
     setUploading(true);
     const path = `${userId}/${Date.now()}-${file.name}`;
@@ -197,7 +208,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     const d = new Date(f.trade_date);
     d.setHours(hh || 0, mm || 0, 0, 0);
 
-    // ── محاسبه خودکار سود/زیان ──
     const entryPrice = parseFloat(f.entry_price);
     const exitPrice = f.exit_price ? parseFloat(f.exit_price) : null;
     const positionSize = parseFloat(f.position_size);
@@ -222,7 +232,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
         );
       }
     }
-    // ─────────────────────────────
 
     const payload = {
       user_id: userId,
@@ -293,9 +302,20 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
               <SelectTrigger><SelectValue placeholder="انتخاب حساب" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">بدون حساب</SelectItem>
-                {(accounts ?? []).map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                ))}
+                {(accounts ?? []).map((a) => {
+                  // ✅ تفکیک و استخراج معاملات مربوط به همین حساب
+                  const accountTrades = (allTrades ?? []).filter((t) => t.account_id === a.id);
+                  // ✅ محاسبه وضعیت لایو حساب
+                  const health = accountHealth(a, accountTrades);
+                  // ✅ اگر حساب کامل پاس شده باشه یا فیلد شده باشه، قفلش می‌کنیم
+                  const isAccountLocked = a.account_type === "prop" && (health.status === "target2" || health.status === "failed");
+
+                  return (
+                    <SelectItem key={a.id} value={a.id} disabled={isAccountLocked}>
+                      {a.name} {isAccountLocked ? " 🔒 (قفل شده)" : ""}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </Field>
