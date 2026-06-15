@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
+import { useAuth } from "@/lib/use-auth";
 import {
   accountStats,
   accountHealth,
@@ -17,9 +19,11 @@ import {
 import { EquityCurve } from "@/components/equity-curve";
 import { CountUp } from "@/components/count-up";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, Pencil, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { AccountForm } from "./accounts.index";
 
 const statusStyle: Record<AccountStatus, string> = {
   active: "bg-muted text-foreground border-border",
@@ -37,6 +41,8 @@ function AccountPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const [editOpen, setEditOpen] = useState(false);
 
   const accountQ = useQuery({
     queryKey: ["account", id],
@@ -65,6 +71,10 @@ function AccountPage() {
   const curve = buildEquityCurve(trades.filter((t) => t.account_id === account.id), account.initial_balance);
   const showRules = account.account_type !== "demo";
 
+  // ✅ بررسی تارگت — target1 قبل از target2 چک میشه
+  const reachedTarget2 = account.profit_target_2 != null && h.growthPct >= account.profit_target_2;
+  const isLocked = reachedTarget2; // بعد از تارگت ۲ قفل میشه
+
   const handleDelete = async () => {
     if (!confirm("حذف این حساب؟ معاملات بدون حساب باقی می‌مانند.")) return;
     const { error } = await supabase.from("accounts").delete().eq("id", id);
@@ -83,22 +93,41 @@ function AccountPage() {
               {accountStatusLabel[h.status]}
             </span>
           )}
+          {/* ✅ نشان قفل بودن حساب بعد از تارگت ۲ */}
+          {isLocked && (
+            <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/10 text-primary px-2.5 py-1 text-[11px] font-semibold">
+              🎯 تارگت ۲ تکمیل شد — حساب قفل است
+            </span>
+          )}
         </div>
-        <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive">
-          <Trash2 className="size-4 ml-2" /> حذف
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* ✅ دکمه ویرایش */}
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="size-4 ml-2" /> ویرایش
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive">
+            <Trash2 className="size-4 ml-2" /> حذف
+          </Button>
+        </div>
       </div>
+
+      {/* ✅ هشدار قفل بودن حساب */}
+      {isLocked && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 mb-4 text-sm text-primary text-center">
+          این حساب به تارگت ۲ رسیده و قفل شده است. برای ثبت معامله جدید باید حساب جدید بسازید.
+        </div>
+      )}
 
       {showRules && (h.drawdownLimit != null || account.daily_drawdown_limit != null || h.target != null) && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {h.drawdownLimit != null && (
             <>
-              <Stat label="افت استفاده‌شده" value={h.maxDrawdown} decimals={2} suffix="٪" />
-              <Stat label="افت باقی‌مانده" value={h.drawdownRemaining ?? 0} decimals={2} suffix="٪" />
+              <Stat label="حد ضرر استفاده‌شده" value={h.maxDrawdown} decimals={2} suffix="٪" />
+              <Stat label="حد ضرر باقی‌مانده" value={h.drawdownRemaining ?? 0} decimals={2} suffix="٪" />
             </>
           )}
           {account.daily_drawdown_limit != null && (
-            <Stat label="بیشترین افت روزانه" value={h.maxDailyDrawdown} decimals={2} suffix="٪" />
+            <Stat label="بیشترین حد ضرر روزانه" value={h.maxDailyDrawdown} decimals={2} suffix="٪" />
           )}
           {h.target != null && (
             <div className="gradient-card rounded-2xl border border-border/60 p-4">
@@ -120,7 +149,7 @@ function AccountPage() {
         <Stat label="تعداد معاملات" value={s.total} decimals={0} />
         <Stat label="میانگین ریسک" value={s.avgRisk} decimals={2} suffix="٪" />
         <Stat label="ثبات ریسک" value={s.riskConsistency} decimals={0} suffix="٪" />
-        <Stat label="انضباط ریسک" value={s.riskDiscipline} decimals={0} suffix="٪" />
+        <Stat label="انضباط قوانین" value={s.riskDiscipline} decimals={0} suffix="٪" />
         <Stat label="معاملات بسته" value={s.closed} decimals={0} />
       </div>
 
@@ -130,7 +159,15 @@ function AccountPage() {
       </div>
 
       <div className="gradient-card rounded-2xl border border-border/60 p-5">
-        <h3 className="font-semibold mb-4">معاملات حساب</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold">معاملات حساب</h3>
+          {/* ✅ دکمه معامله جدید — فقط اگه قفل نباشه */}
+          {!isLocked && (
+            <Link to="/trades/new" className="text-xs text-primary hover:underline flex items-center gap-1">
+              <LinkIcon className="size-3" /> معامله جدید
+            </Link>
+          )}
+        </div>
         {trades.length === 0 ? (
           <p className="text-muted-foreground text-sm text-center py-6">هنوز معامله‌ای در این حساب نیست.</p>
         ) : (
@@ -143,18 +180,42 @@ function AccountPage() {
                   <span className="font-medium" dir="ltr">{t.asset_name}</span>
                 </div>
                 <span className="num font-semibold text-muted-foreground text-xs">
-                  {t.risk_percent === null || t.risk_percent === undefined ? "—" : `ریسک ${formatPercent(t.risk_percent)}`}
+                  {t.risk_percent === null || t.risk_percent === undefined ? "—" : `ریسک ${formatNumber(t.risk_percent, 2)}٪`}
                 </span>
               </Link>
             ))}
           </div>
         )}
       </div>
+
+      {/* ✅ دیالوگ ویرایش حساب */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>ویرایش حساب</DialogTitle></DialogHeader>
+          {user && (
+            <AccountForm
+              userId={user.id}
+              initial={account}
+              onDone={() => {
+                setEditOpen(false);
+                qc.invalidateQueries({ queryKey: ["account", id] });
+                qc.invalidateQueries({ queryKey: ["accounts"] });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
 
-function Stat({ label, value, decimals, suffix, colored }: { label: string; value: number; decimals: number; suffix?: string; colored?: boolean }) {
+function Stat({ label, value, decimals, suffix, colored }: {
+  label: string;
+  value: number;
+  decimals: number;
+  suffix?: string;
+  colored?: boolean;
+}) {
   const color = colored ? (value >= 0 ? "text-primary" : "text-destructive") : "text-foreground";
   return (
     <div className="gradient-card rounded-2xl border border-border/60 p-4">
