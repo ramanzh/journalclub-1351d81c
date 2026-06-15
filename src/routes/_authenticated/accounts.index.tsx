@@ -78,9 +78,12 @@ function AccountsPage() {
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>افزودن حساب جدید</DialogTitle></DialogHeader>
-            {user ? (
-              <NewAccountForm userId={user.id} onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["accounts"] }); }} />
-            ) : null}
+            {user && (
+              <AccountForm
+                userId={user.id}
+                onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["accounts"] }); }}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>
@@ -90,7 +93,6 @@ function AccountsPage() {
       ) : loadError ? (
         <div className="gradient-card rounded-2xl border border-destructive/40 p-8 text-center space-y-3">
           <p className="text-destructive font-semibold">خطا در بارگذاری حساب‌ها</p>
-          <p className="text-xs text-muted-foreground font-mono break-all">{(loadError as Error).message}</p>
           <Button onClick={() => { accountsQ.refetch(); tradesQ.refetch(); }} variant="outline" size="sm">تلاش دوباره</Button>
         </div>
       ) : accounts.length === 0 ? (
@@ -126,8 +128,8 @@ function AccountsPage() {
                   <Row label="رشد" value={formatPercent(h.growthPct)} pn={h.growthPct} />
                   {h.drawdownLimit != null && (
                     <>
-                      <Row label="افت استفاده‌شده" value={formatPercent(h.maxDrawdown, 2)} pn={-h.maxDrawdown} />
-                      <Row label="افت باقی‌مانده" value={formatPercent(h.drawdownRemaining ?? 0, 2)} />
+                      <Row label="حد ضرر استفاده‌شده" value={formatPercent(h.maxDrawdown, 2)} pn={-h.maxDrawdown} />
+                      <Row label="حد ضرر باقی‌مانده" value={formatPercent(h.drawdownRemaining ?? 0, 2)} />
                     </>
                   )}
                   {h.target != null && h.targetProgress != null && (
@@ -159,23 +161,30 @@ function Row({ label, value, muted, pn }: { label: string; value: string; muted?
   );
 }
 
-function NewAccountForm({ userId, onDone }: { userId: string; onDone: () => void }) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<Account["account_type"]>("demo");
-  const [balance, setBalance] = useState("");
-  const [broker, setBroker] = useState("");
-  const [dailyDD, setDailyDD] = useState("");
-  const [maxDD, setMaxDD] = useState("");
-  const [t1, setT1] = useState("");
-  const [t2, setT2] = useState("");
+export function AccountForm({
+  userId, onDone, initial,
+}: {
+  userId: string;
+  onDone: () => void;
+  initial?: Account;
+}) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [type, setType] = useState<Account["account_type"]>(initial?.account_type ?? "demo");
+  const [balance, setBalance] = useState(initial?.initial_balance ? String(initial.initial_balance) : "");
+  const [broker, setBroker] = useState(initial?.broker ?? "");
+  const [dailyDD, setDailyDD] = useState(initial?.daily_drawdown_limit ? String(initial.daily_drawdown_limit) : "");
+  const [maxDD, setMaxDD] = useState(initial?.max_drawdown_limit ? String(initial.max_drawdown_limit) : "");
+  const [t1, setT1] = useState(initial?.profit_target_1 ? String(initial.profit_target_1) : "");
+  const [t2, setT2] = useState(initial?.profit_target_2 ? String(initial.profit_target_2) : "");
   const [saving, setSaving] = useState(false);
 
   const num = (s: string) => (s.trim() ? parseFloat(s) : null);
+  const sanitize = (v: string) => v.replace(/[^\d.]/g, "");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("accounts").insert({
+    const payload = {
       user_id: userId,
       name: name.trim(),
       account_type: type,
@@ -185,14 +194,17 @@ function NewAccountForm({ userId, onDone }: { userId: string; onDone: () => void
       max_drawdown_limit: type === "prop" || type === "real" ? num(maxDD) : null,
       profit_target_1: type === "prop" ? num(t1) : null,
       profit_target_2: type === "prop" ? num(t2) : null,
-    });
+    };
+
+    const { error } = initial
+      ? await supabase.from("accounts").update(payload).eq("id", initial.id)
+      : await supabase.from("accounts").insert(payload);
+
     setSaving(false);
     if (error) return toast.error("ثبت ناموفق", { description: error.message });
-    toast.success("حساب اضافه شد");
+    toast.success(initial ? "حساب ویرایش شد" : "حساب اضافه شد");
     onDone();
   };
-
-  const sanitize = (v: string) => v.replace(/[^\d.]/g, "");
 
   return (
     <form onSubmit={submit} className="space-y-4">
@@ -249,7 +261,7 @@ function NewAccountForm({ userId, onDone }: { userId: string; onDone: () => void
       )}
 
       <Button type="submit" disabled={saving} className="w-full gradient-primary text-primary-foreground">
-        {saving ? <Loader2 className="size-4 animate-spin" /> : "ثبت حساب"}
+        {saving ? <Loader2 className="size-4 animate-spin" /> : initial ? "ذخیره تغییرات" : "ثبت حساب"}
       </Button>
     </form>
   );
