@@ -325,19 +325,55 @@ export function accountHealth(account: Account, trades: Trade[]) {
   const growthPct = initial > 0 ? ((currentBalance - initial) / initial) * 100 : 0;
 
   let status: AccountStatus = "active";
-if (account.account_type === "prop") {
-  if (account.daily_drawdown_limit != null && maxDailyDD >= account.daily_drawdown_limit) {
-    status = "failed";
-  } else if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) {
-    status = "failed";
-  } else if (account.profit_target_2 != null && growthPct >= account.profit_target_2) {
-    status = "target2";
-  } else if (account.profit_target_1 != null && growthPct >= account.profit_target_1) {
-    // فقط اگه target2 وجود نداره یا بهش نرسیده
-    if (account.profit_target_2 == null || growthPct < account.profit_target_2) {
-      status = "target1";
+
+  if (account.account_type === "prop") {
+    // اول شرایط نقض قوانین و فیلد شدن حساب رو چک می‌کنیم
+    if (account.daily_drawdown_limit != null && maxDailyDD >= account.daily_drawdown_limit) {
+      status = "failed";
+    } else if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) {
+      status = "failed";
+    } else {
+      // حالا بررسی منطقی تارگت‌ها پله به پله
+      if (account.profit_target_1 != null && growthPct >= account.profit_target_1) {
+        status = "target1"; // مرحله یک پاس شد
+        
+        // حالا که مرحله یک پاس شده، چک میکنیم آیا مرحله دو رو هم پاس کرده یا نه
+        if (account.profit_target_2 != null && growthPct >= account.profit_target_2) {
+          status = "target2"; // مرحله دو هم پاس شد
+        }
+      }
     }
+  } else if (account.account_type === "real") {
+    if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) status = "failed";
   }
+
+  const ddLimit = account.max_drawdown_limit ?? null;
+  const drawdownRemaining = ddLimit != null ? Math.max(0, ddLimit - maxDD) : null;
+  
+  // تنظیم داینامیک تارگت برای نمایش در سایت: 
+  // اگر مرحله یک پاس شده بود، تارگت اصلی رو بذار روی مرحله دو، در غیر این صورت همون مرحله یک رو نشون بده
+  let target = account.profit_target_1 ?? null;
+  if (account.account_type === "prop" && status === "target1") {
+    target = account.profit_target_2 ?? account.profit_target_1 ?? null;
+  } else if (account.account_type === "prop" && status === "target2") {
+    target = account.profit_target_2 ?? null;
+  }
+
+  // محاسبه درصد پیشرفت دقیق بر اساس تارگت مرحله جاری
+  const targetProgress = target != null && target > 0 ? Math.max(0, Math.min(100, (growthPct / target) * 100)) : null;
+
+  return {
+    status,
+    currentBalance,
+    initialBalance: initial,
+    growthPct,
+    maxDrawdown: maxDD,
+    maxDailyDrawdown: maxDailyDD,
+    drawdownLimit: ddLimit,
+    drawdownRemaining,
+    target,
+    targetProgress,
+  };
 } else if (account.account_type === "real") {
     if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) status = "failed";
   }
