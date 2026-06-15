@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
-import { buildEquityCurve, computeStats, formatNumber, formatPercent, type Account, type Trade } from "@/lib/trade-utils";
+import { buildEquityCurve, computeStats, formatNumber, type Account, type Trade } from "@/lib/trade-utils";
 import { Target, Percent, ArrowLeft, Loader2, ShieldCheck, Activity, Gauge } from "lucide-react";
 import { CountUp } from "@/components/count-up";
 import { EquityCurve } from "@/components/equity-curve";
@@ -15,6 +15,12 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 type Filter = "demo" | "prop" | "real" | string;
+
+// فرمت درصد بدون مثبت
+function fPct(n: number | null | undefined, frac = 1) {
+  if (n === null || n === undefined || isNaN(Number(n))) return "—";
+  return `${formatNumber(n, frac)}٪`;
+}
 
 function DashboardPage() {
   const tradesQ = useQuery({
@@ -41,7 +47,6 @@ function DashboardPage() {
   const isLoading = tradesQ.isLoading || accountsQ.isLoading;
   const s = computeStats(trades, accounts);
 
-  // state اول رو به اولین حساب واقعی تنظیم کن
   const [filter, setFilter] = useState<Filter>("");
 
   useEffect(() => {
@@ -68,7 +73,8 @@ function DashboardPage() {
     { label: "نرخ برد", value: s.winRate, decimals: 1, suffix: "٪", Icon: Percent, color: "text-primary" },
     { label: "میانگین ریسک", value: s.avgRisk, decimals: 2, suffix: "٪", Icon: Activity, color: "text-foreground" },
     { label: "ثبات ریسک", value: s.riskConsistency, decimals: 0, suffix: "٪", Icon: Gauge, color: s.riskConsistency >= 70 ? "text-primary" : s.riskConsistency >= 40 ? "text-foreground" : "text-destructive" },
-    { label: "انضباط ریسک", value: s.riskDiscipline, decimals: 0, suffix: "٪", Icon: ShieldCheck, color: s.riskDiscipline >= 70 ? "text-primary" : s.riskDiscipline >= 40 ? "text-foreground" : "text-destructive" },
+    // ✅ انضباط قوانین به جای انضباط ریسک
+    { label: "انضباط قوانین", value: s.riskDiscipline, decimals: 0, suffix: "٪", Icon: ShieldCheck, color: s.riskDiscipline >= 70 ? "text-primary" : s.riskDiscipline >= 40 ? "text-foreground" : "text-destructive" },
   ];
 
   return (
@@ -103,7 +109,6 @@ function DashboardPage() {
                 <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
                   <SelectTrigger className="w-56"><SelectValue placeholder="انتخاب حساب" /></SelectTrigger>
                   <SelectContent>
-                    {/* گروه‌بندی بر اساس نوع */}
                     <SelectItem value="demo">حساب‌های دمو</SelectItem>
                     <SelectItem value="prop">حساب‌های پراپ</SelectItem>
                     <SelectItem value="real">حساب‌های واقعی</SelectItem>
@@ -127,8 +132,9 @@ function DashboardPage() {
                 <Row label="معاملات بسته" value={formatNumber(s.closed, 0)} />
                 <Row label="برنده" value={formatNumber(s.wins, 0)} positive />
                 <Row label="بازنده" value={formatNumber(s.losses, 0)} negative />
-                <Row label="میانگین R:R" value={formatNumber(s.avgRR, 2)} />
-                <Row label="میانگین ریسک" value={formatPercent(s.avgRisk)} />
+                {/* ✅ میانگین R:R حذف شد */}
+                {/* ✅ میانگین ریسک بدون مثبت */}
+                <Row label="میانگین ریسک" value={fPct(s.avgRisk)} />
               </div>
               <Link to="/trades/new" className="mt-5 inline-flex items-center justify-center gap-2 w-full rounded-lg gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow">
                 ثبت معامله جدید <ArrowLeft className="size-4" />
@@ -154,8 +160,11 @@ function DashboardPage() {
                       <span className="font-medium" dir="ltr">{t.asset_name}</span>
                       <span className="text-xs text-muted-foreground">{t.side === "buy" ? "خرید" : "فروش"}</span>
                     </div>
+                    {/* ✅ بدون مثبت کنار درصد ریسک */}
                     <span className="text-xs text-muted-foreground num">
-                      {t.risk_percent !== null && t.risk_percent !== undefined ? `ریسک ${formatPercent(t.risk_percent)}` : "—"}
+                      {t.risk_percent !== null && t.risk_percent !== undefined
+                        ? `ریسک ${formatNumber(t.risk_percent, 2)}٪`
+                        : "—"}
                     </span>
                   </Link>
                 ))}
