@@ -294,6 +294,7 @@ export const accountStatusLabel: Record<AccountStatus, string> = {
 };
 
 export function accountHealth(account: Account, trades: Trade[]) {
+  // ۱. مرتب‌سازی معامله‌های این حساب از قدیمی‌ترین به جدیدترین بر اساس تاریخ
   const own = trades
     .filter((t) => t.account_id === account.id && t.profit_loss !== null)
     .sort((a, b) => new Date(a.trade_date).getTime() - new Date(b.trade_date).getTime());
@@ -303,18 +304,50 @@ export function accountHealth(account: Account, trades: Trade[]) {
   let peak = initial;
   let maxDD = 0;
 
+  // متغیرهای مربوط به مدیریت پله‌پله چالش پراپ
+  let isPhase1Passed = false;
+  let phase2GrowthPct = 0; // شروع سود مرحله دو از صفر
+
   const dayMap = new Map<string, { start: number; low: number }>();
+  
+  // حرکت روی معامله‌ها به ترتیب تاریخ وقوع
   for (const t of own) {
     const key = new Date(t.trade_date).toISOString().slice(0, 10);
     if (!dayMap.has(key)) dayMap.set(key, { start: balance, low: balance });
-    balance += t.profit_loss ?? 0;
+    
+    // اعمال سود/زیان معامله فعلی روی بالانس
+    const pl = t.profit_loss ?? 0;
+    balance += pl;
+    
+    // محاسبه دروداون‌ها
     if (balance > peak) peak = balance;
     const dd = peak > 0 ? ((peak - balance) / peak) * 100 : 0;
     if (dd > maxDD) maxDD = dd;
+    
     const d = dayMap.get(key)!;
     if (balance < d.low) d.low = balance;
+
+    // محاسبه رشد کل حساب تا این لحظه
+    const currentGrowthPct = initial > 0 ? ((balance - initial) / initial) * 100 : 0;
+
+    // منطق اصلی چالش پراپ فرم
+    if (account.account_type === "prop") {
+      if (!isPhase1Passed) {
+        // اگر هنوز مرحله ۱ پاس نشده، چک کن آیا با این معامله پاس میشه؟
+        if (account.profit_target_1 != null && currentGrowthPct >= account.profit_target_1) {
+          isPhase1Passed = true;
+        }
+      } else {
+        // اگر مرحله ۱ قبلاً پاس شده، سود این معامله جدید رو برای مرحله ۲ از صفر حساب کن
+        if (initial > 0) {
+          const tradeContributionPct = (pl / initial) * 100;
+          phase2GrowthPct += tradeContributionPct;
+        }
+      }
+    }
   }
 
+  // محاسبه حداکثر دروداون روزانه
   let maxDailyDD = 0;
   for (const d of dayMap.values()) {
     const dd = d.start > 0 ? ((d.start - d.low) / d.start) * 100 : 0;
@@ -324,6 +357,7 @@ export function accountHealth(account: Account, trades: Trade[]) {
   const currentBalance = balance;
   const growthPct = initial > 0 ? ((currentBalance - initial) / initial) * 100 : 0;
 
+  // تعیین وضعیت نهایی حساب
   let status: AccountStatus = "active";
 
   if (account.account_type === "prop") {
@@ -331,12 +365,12 @@ export function accountHealth(account: Account, trades: Trade[]) {
       status = "failed";
     } else if (account.max_drawdown_limit != null && maxDD >= account.max_drawdown_limit) {
       status = "failed";
-    } else {
-      if (account.profit_target_1 != null && growthPct >= account.profit_target_1) {
-        status = "target1";
-        if (account.profit_target_2 != null && growthPct >= account.profit_target_2) {
-          status = "target2";
-        }
+    } else if (isPhase1Passed) {
+      status = "target1"; // مرحله یک پاس شده و در مرحله دو هستیم
+      
+      // حالا چک می‌کنیم آیا سودِ مستقلِ مرحله دو به تارگت ۲ رسیده یا نه؟
+      if (account.profit_target_2 != null && phase2GrowthPct >= account.profit_target_2) {
+        status = "target2"; // کل چالش پاس شد!
       }
     }
   } else if (account.account_type === "real") {
@@ -348,14 +382,19 @@ export function accountHealth(account: Account, trades: Trade[]) {
   const ddLimit = account.max_drawdown_limit ?? null;
   const drawdownRemaining = ddLimit != null ? Math.max(0, ddLimit - maxDD) : null;
 
+  // تنظیم تارگت و درصد پیشرفت نوار گرافیکی در فرانت‌اند
   let target = account.profit_target_1 ?? null;
+  let targetProgress = target != null && target > 0 ? Math.max(0, Math.min(100, (growthPct / target) * 100)) : null;
+
   if (account.account_type === "prop" && status === "target1") {
-    target = account.profit_target_2 ?? account.profit_target_1 ?? null;
+    // اگر در مرحله دو هستیم، هدف اصلی رو بذار روی تارگت ۲
+    target = account.profit_target_2 ?? null;
+    // درصد پیشرفت رو هم دقیقاً بر اساس سودِ کسب شده در مرحله دو (نه سود کل) حساب کن
+    targetProgress = target != null && target > 0 ? Math.max(0, Math.min(100, (phase2GrowthPct / target) * 100)) : null;
   } else if (account.account_type === "prop" && status === "target2") {
     target = account.profit_target_2 ?? null;
+    targetProgress = 100;
   }
-
-  const targetProgress = target != null && target > 0 ? Math.max(0, Math.min(100, (growthPct / target) * 100)) : null;
 
   return {
     status,
