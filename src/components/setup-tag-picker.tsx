@@ -33,7 +33,7 @@ export function SetupTagPicker({
     queryFn: async () => {
       const [tagsRes, libraryRes] = await Promise.all([
         supabase.from("setup_tags").select("id, name").eq("user_id", userId).order("created_at", { ascending: true }),
-        supabase.from("setups").select("id, name").eq("user_id", userId).order("created_at", { ascending: true }),
+        supabase.from("trade_setups").select("id, name").eq("user_id", userId).order("created_at", { ascending: true }),
       ]);
 
       const tags: SetupItem[] = (tagsRes.data ?? []).map((t) => ({ id: t.id, name: t.name, source: "tag" }));
@@ -69,7 +69,7 @@ export function SetupTagPicker({
   const saveEdit = async (item: SetupItem) => {
     const name = editing[item.id]?.trim();
     if (!name) return;
-    const table = item.source === "library" ? "setups" : "setup_tags";
+    const table = item.source === "library" ? "trade_setups" : "setup_tags";
     const { error } = await supabase.from(table).update({ name }).eq("id", item.id);
     if (error) return toast.error("ویرایش ناموفق", { description: error.message });
     setEditing((p) => { const n = { ...p }; delete n[item.id]; return n; });
@@ -78,7 +78,7 @@ export function SetupTagPicker({
 
   const removeItem = async (item: SetupItem) => {
     if (!confirm(`حذف «${item.name}»؟`)) return;
-    const table = item.source === "library" ? "setups" : "setup_tags";
+    const table = item.source === "library" ? "trade_setups" : "setup_tags";
     const { error } = await supabase.from(table).delete().eq("id", item.id);
     if (error) return toast.error("حذف ناموفق", { description: error.message });
     onChange(value.filter((n) => n !== item.name));
