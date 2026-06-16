@@ -8,7 +8,7 @@ import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 import {
   setupStats, sessionStats, emotionStats, checklistStats,
   qualityStats, ruleStats,
-  formatNumber, formatPercent,
+  formatNumber,
   type Account, type ChecklistItem, type Trade, type TradingRule,
 } from "@/lib/trade-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,6 +34,12 @@ const tooltipStyle = {
   borderRadius: 8,
   color: "hsl(var(--foreground))",
   fontSize: 12,
+};
+
+// فرمت درصد بدون مثبت
+const fPct = (n: number | null | undefined, frac = 1) => {
+  if (n === null || n === undefined || isNaN(Number(n))) return "—";
+  return `${formatNumber(n, frac)}٪`;
 };
 
 function AnalyticsPage() {
@@ -146,9 +152,9 @@ function AnalyticsPage() {
               rows={setups.map((s) => [
                 s.name,
                 formatNumber(s.trades, 0),
-                formatPercent(s.winRate, 1),
-                formatPercent(s.avgPL),
-                formatPercent(s.avgRisk),
+                fPct(s.winRate, 1),
+                fPct(s.avgPL),
+                fPct(s.avgRisk),
               ])}
             />
           </Card>
@@ -189,9 +195,9 @@ function AnalyticsPage() {
               rows={sessions.map((s) => [
                 s.label,
                 formatNumber(s.trades, 0),
-                formatPercent(s.winRate, 1),
-                formatPercent(s.avgRisk),
-                formatPercent(s.growth),
+                fPct(s.winRate, 1),
+                fPct(s.avgRisk),
+                fPct(s.growth),
               ])}
             />
           </Card>
@@ -206,8 +212,8 @@ function AnalyticsPage() {
                 rows={emoB.map((e) => [
                   e.label,
                   formatNumber(e.count, 0),
-                  formatPercent(e.winRate, 1),
-                  formatPercent(e.lossRate, 1),
+                  fPct(e.winRate, 1),
+                  fPct(e.lossRate, 1),
                 ])}
               />
             )}
@@ -219,8 +225,8 @@ function AnalyticsPage() {
                 rows={emoA.map((e) => [
                   e.label,
                   formatNumber(e.count, 0),
-                  formatPercent(e.winRate, 1),
-                  formatPercent(e.lossRate, 1),
+                  fPct(e.winRate, 1),
+                  fPct(e.lossRate, 1),
                 ])}
               />
             )}
@@ -229,10 +235,9 @@ function AnalyticsPage() {
 
         {/* چک‌لیست */}
         <TabsContent value="checklist" className="mt-4 space-y-4">
-          <div className="grid md:grid-cols-3 gap-4">
-            <Stat label="نرخ برد با چک‌لیست کامل" value={formatPercent(chk.fullWinRate, 1)} sub={`${chk.fullCount} معامله`} positive />
-            <Stat label="نرخ برد بدون چک‌لیست کامل" value={formatPercent(chk.partialWinRate, 1)} sub={`${chk.partialCount} معامله`} negative />
-            <Stat label="امتیاز انضباط چک‌لیست" value={formatPercent(chk.discipline, 0)} />
+          <div className="grid md:grid-cols-2 gap-4">
+            <Stat label="نرخ برد با چک‌لیست کامل" value={fPct(chk.fullWinRate, 1)} sub={`${chk.fullCount} معامله`} positive />
+            <Stat label="امتیاز انضباط چک‌لیست" value={fPct(chk.discipline, 0)} />
           </div>
           <Card title="مواردی که بیشتر نادیده گرفته شده‌اند">
             <Table
@@ -271,8 +276,8 @@ function AnalyticsPage() {
               rows={qual.map((q) => [
                 q.quality,
                 formatNumber(q.trades, 0),
-                formatPercent(q.winRate, 1),
-                formatPercent(q.avgPL),
+                fPct(q.winRate, 1),
+                fPct(q.avgPL),
               ])}
             />
           </Card>
@@ -282,8 +287,8 @@ function AnalyticsPage() {
         <TabsContent value="rules" className="mt-4 space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
             <Stat label="امتیاز انضباط" value={`${rs.discipline}/۱۰۰`} positive />
-            <Stat label="قوانین رعایت‌شده" value={formatPercent(rs.followedPct, 0)} positive />
-            <Stat label="قوانین نقض‌شده" value={formatPercent(rs.brokenPct, 0)} negative />
+            <Stat label="قوانین رعایت‌شده" value={fPct(rs.followedPct, 0)} positive />
+            <Stat label="قوانین نقض‌شده" value={fPct(rs.brokenPct, 0)} negative />
           </div>
           <Card title="آمار به‌تفکیک قانون">
             <Table
