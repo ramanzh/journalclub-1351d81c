@@ -307,18 +307,28 @@ function CalendarPage() {
 
         {/* جزئیات روز انتخابی */}
         {selected && (
-          <div className="gradient-card rounded-2xl border border-border/60 p-5 animate-fade-in">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">{new Intl.DateTimeFormat("fa-IR", { dateStyle: "full" }).format(new Date(selected))}</h3>
-              <div className="text-sm flex gap-4">
-                {accFilter !== "all" && (
-                  <span className={selectedPL > 0 ? "text-primary" : selectedPL < 0 ? "text-destructive" : ""}>
-                    مجموع: {formatPercent(selectedPct)}
-                  </span>
-                )}
-                <span className="text-muted-foreground">{formatNumber(selectedTrades.length, 0)} معامله</span>
-              </div>
-            </div>
+  <div className="gradient-card rounded-2xl border border-border/60 p-5 animate-fade-in">
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="font-semibold">{new Intl.DateTimeFormat("fa-IR", { dateStyle: "full" }).format(new Date(selected))}</h3>
+      <div className="text-sm flex items-center gap-4">
+        {accFilter !== "all" && (
+          <span className={selectedPL > 0 ? "text-primary" : selectedPL < 0 ? "text-destructive" : ""}>
+            مجموع: {formatPercent(selectedPct)}
+          </span>
+        )}
+        <span className="text-muted-foreground">{formatNumber(selectedTrades.length, 0)} معامله</span>
+        {/* دکمه معامله جدید — فقط برای روزهای گذشته */}
+        {new Date(selected) < new Date(dayKey(new Date())) && (
+          
+            href={`/trades/new?date=${selected}`}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary border border-primary/30 px-3 py-1.5 text-xs font-medium hover:bg-primary/20 transition"
+          >
+            <PlusCircle className="size-3.5" />
+            معامله جدید
+          </a>
+        )}
+      </div>
+    </div>
             {selectedTrades.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">معامله‌ای ثبت نشده.</p>
             ) : (
