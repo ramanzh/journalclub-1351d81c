@@ -67,11 +67,13 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
         <nav className="flex-1 p-3 space-y-1">
           {nav.map(({ to, label, Icon }) => {
             // ✅ اصلاح منطق اکتیو برای جلوگیری از سبز شدن همزمان منوی معاملات و معامله جدید
-            let active = pathname === to;
-            if (!active && to !== "/dashboard" && to !== "/trades") {
-              active = pathname.startsWith(to);
-            }
-
+           let active = pathname === to;
+if (!active && to !== "/dashboard" && to !== "/trades" && to !== "/trades/new") {
+  active = pathname.startsWith(to);
+}
+if (to === "/trades") {
+  active = pathname === "/trades" || (pathname.startsWith("/trades/") && pathname !== "/trades/new");
+}
             return (
               <Link
                 key={to}
