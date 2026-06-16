@@ -6,7 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/lib/use-auth";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Loader2, Info, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Info, ChevronDown, PlusCircle } from "lucide-react";
 import { formatNumber, formatPercent, marketLabel, type Account, type Trade } from "@/lib/trade-utils";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
