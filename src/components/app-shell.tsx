@@ -66,7 +66,12 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
 
         <nav className="flex-1 p-3 space-y-1">
           {nav.map(({ to, label, Icon }) => {
-            const active = pathname === to || (to !== "/dashboard" && pathname.startsWith(to));
+            // ✅ اصلاح منطق اکتیو برای جلوگیری از سبز شدن همزمان منوی معاملات و معامله جدید
+            let active = pathname === to;
+            if (!active && to !== "/dashboard" && to !== "/trades") {
+              active = pathname.startsWith(to);
+            }
+
             return (
               <Link
                 key={to}
@@ -94,7 +99,6 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
             بازگشت به داشبورد
           </Button>
 
-          {/* دکمه خروج با انیمیشن قرمز */}
           <Button
             variant="ghost"
             className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 transition-all duration-200 group"
@@ -111,15 +115,27 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
           <div className="flex items-center justify-between px-6 py-4">
             <h1 className="text-xl font-bold">{title}</h1>
             <div className="md:hidden flex items-center gap-1.5">
-              {nav.map(({ to, Icon, label }) => (
-                <Link key={to} to={to} className="rounded-md p-2 hover:bg-accent" title={label}>
-                  <Icon className="size-4" />
-                </Link>
-              ))}
+              {nav.map(({ to, Icon, label }) => {
+                // ✅ اعمال همان منطق بهینه‌شده برای نمایشگرهای موبایل
+                let active = pathname === to;
+                if (!active && to !== "/dashboard" && to !== "/trades") {
+                  active = pathname.startsWith(to);
+                }
+                
+                return (
+                  <Link 
+                    key={to} 
+                    to={to} 
+                    className={`rounded-md p-2 transition ${active ? "bg-accent text-primary" : "hover:bg-accent"}`} 
+                    title={label}
+                  >
+                    <Icon className="size-4" />
+                  </Link>
+                );
+              })}
               <Button variant="ghost" size="icon" onClick={goHome} title="بازگشت به داشبورد">
                 <Home className="size-4" />
               </Button>
-              {/* دکمه خروج موبایل */}
               <Button
                 variant="ghost"
                 size="icon"
