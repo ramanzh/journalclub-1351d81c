@@ -20,14 +20,13 @@ import { EmotionPicker } from "@/components/emotion-picker";
 import { QualityPicker } from "@/components/quality-picker";
 import { BrokenRulesPicker } from "@/components/broken-rules-picker";
 import { cn } from "@/lib/utils";
-// ✅ اضافه شدن accountHealth برای بررسی وضعیت لحظه‌ای حساب‌ها
 import { SESSIONS, sessionLabel, accountHealth, type Account, type Session, type Trade, type TradeQuality } from "@/lib/trade-utils";
 import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 
 type FormState = {
   asset_name: string;
   market: Trade["market"];
-  side: Trade["side"];
+  side: Trade["side"] | "buy_limit" | "sell_limit" | "buy_stop" | "sell_stop"; // ✅ اضافه شدن اوردرهای لیمیت و استاپ
   account_id: string;
   entry_price: string;
   exit_price: string;
@@ -40,12 +39,12 @@ type FormState = {
   mistakes: string;
   lessons: string;
   notes: string;
-  trade_date: Date;
+  trade_date: Date | undefined; // ✅ تغییر به undefined برای کنترل پر بودن
   trade_time: string;
   setup_tags: string[];
   session: string;
   checklist: Record<string, boolean>;
-  quality: TradeQuality | null;
+  quality: string | null; // ✅ تغییر تایپ برای پذیرش کیفیت‌های جدید
   broken_rules: string[];
 };
 
@@ -57,7 +56,7 @@ const toInitial = (t?: Trade): FormState => {
   return {
     asset_name: t?.asset_name ?? "",
     market: t?.market ?? "forex",
-    side: t?.side ?? "buy",
+    side: (t?.side as any) ?? "buy",
     account_id: t?.account_id ?? "none",
     entry_price: numStr(t?.entry_price),
     exit_price: numStr(t?.exit_price),
@@ -71,11 +70,11 @@ const toInitial = (t?: Trade): FormState => {
     lessons: t?.lessons ?? "",
     notes: t?.notes ?? "",
     trade_date: d,
-    trade_time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    trade_time: t?.trade_date ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : `${pad(new Date().getHours())}:${pad(new Date().getMinutes())}`,
     setup_tags: t?.setup_tags ?? [],
     session: (t?.session as string) ?? "",
     checklist: (t?.checklist as Record<string, boolean>) ?? {},
-    quality: (t?.quality as TradeQuality | null) ?? null,
+    quality: (t?.quality as string | null) ?? null,
     broken_rules: t?.broken_rules ?? [],
   };
 };
@@ -181,7 +180,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     },
   });
 
-  // ✅ اضافه شدن کوئری دریافت کل معاملات برای محاسبه دقیق وضعیت سلامت هر حساب
   const { data: allTrades } = useQuery({
     queryKey: ["all-trades-for-form"],
     queryFn: async () => {
@@ -203,20 +201,33 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ── ✅ اعتبارسنجی فیلدهای اجباری به زبان فارسی (مورد ۷) ──
+    if (!f.market) return toast.error("خطای ثبت", { description: "لطفاً بازار معاملاتی را انتخاب کنید." });
+    if (!f.asset_name.trim()) return toast.error("خطای ثبت", { description: "لطفاً نام جفت‌ارز یا شاخص را وارد کنید." });
+    if (!f.entry_price) return toast.error("خطای ثبت", { description: "وارد کردن قیمت ورود اجباری است." });
+    if (!f.exit_price) return toast.error("خطای ثبت", { description: "وارد کردن قیمت خروج اجباری است." });
+    if (!f.position_size) return toast.error("خطای ثبت", { description: "وارد کردن حجم پوزیشن اجباری است." });
+    if (!f.risk_percent) return toast.error("خطای ثبت", { description: "وارد کردن درصد ریسک اجباری است." });
+    if (!f.trade_date) return toast.error("خطای ثبت", { description: "لطفاً تاریخ معامله را مشخص کنید." });
+    if (!f.trade_time) return toast.error("خطای ثبت", { description: "لطفاً ساعت معامله را مشخص کنید." });
+
     setSaving(true);
     const [hh, mm] = f.trade_time.split(":").map(Number);
     const d = new Date(f.trade_date);
     d.setHours(hh || 0, mm || 0, 0, 0);
 
     const entryPrice = parseFloat(f.entry_price);
-    const exitPrice = f.exit_price ? parseFloat(f.exit_price) : null;
+    const exitPrice = parseFloat(f.exit_price);
     const positionSize = parseFloat(f.position_size);
 
     let profit_loss: number | null = null;
     let profit_loss_percent: number | null = null;
 
-    if (exitPrice !== null && !isNaN(entryPrice) && !isNaN(positionSize)) {
-      if (f.side === "buy") {
+    // محاسبه سود و زیان (برای جهت‌های جدید لیمیت و استاپ، منطق خرید یا فروش اعمال می‌شود)
+    if (!isNaN(entryPrice) && !isNaN(exitPrice) && !isNaN(positionSize)) {
+      const isBuySide = f.side === "buy" || f.side === "buy_limit" || f.side === "buy_stop";
+      if (isBuySide) {
         profit_loss = (exitPrice - entryPrice) * positionSize;
       } else {
         profit_loss = (entryPrice - exitPrice) * positionSize;
@@ -238,7 +249,7 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       account_id: f.account_id === "none" ? null : f.account_id,
       asset_name: f.asset_name.trim(),
       market: f.market,
-      side: f.side,
+      side: f.side.startsWith("buy") ? "buy" : "sell", // تبدیل به فیلد استاندارد دیتابیس بومی شما
       entry_price: entryPrice,
       exit_price: exitPrice,
       stop_loss: f.stop_loss ? parseFloat(f.stop_loss) : null,
@@ -257,7 +268,7 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       setup_tags: f.setup_tags,
       session: f.session || null,
       checklist: f.checklist,
-      quality: f.quality,
+      quality: f.quality as TradeQuality,
       broken_rules: f.broken_rules,
     };
 
@@ -287,7 +298,7 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
       <Section title="اطلاعات معامله">
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="بازار">
+          <Field label="بازار" required> {/* ✅ اجباری شد */}
             <Select value={f.market} onValueChange={(v) => set("market", v as Trade["market"])}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -303,11 +314,8 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
               <SelectContent>
                 <SelectItem value="none">بدون حساب</SelectItem>
                 {(accounts ?? []).map((a) => {
-                  // ✅ تفکیک و استخراج معاملات مربوط به همین حساب
                   const accountTrades = (allTrades ?? []).filter((t) => t.account_id === a.id);
-                  // ✅ محاسبه وضعیت لایو حساب
                   const health = accountHealth(a, accountTrades);
-                  // ✅ اگر حساب کامل پاس شده باشه یا فیلد شده باشه، قفلش می‌کنیم
                   const isAccountLocked = a.account_type === "prop" && (health.status === "target2" || health.status === "failed");
 
                   return (
@@ -325,18 +333,23 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             </Field>
           </div>
           <Field label="جهت">
-            <Select value={f.side} onValueChange={(v) => set("side", v as Trade["side"])}>
+            <Select value={f.side} onValueChange={(v) => set("side", v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                {/* ✅ اضافه شدن اوردرهای پیشرفته (مورد ۴) */}
                 <SelectItem value="buy">خرید (Long)</SelectItem>
                 <SelectItem value="sell">فروش (Short)</SelectItem>
+                <SelectItem value="buy_limit">Buy Limit</SelectItem>
+                <SelectItem value="sell_limit">Sell Limit</SelectItem>
+                <SelectItem value="buy_stop">Buy Stop</SelectItem>
+                <SelectItem value="sell_stop">Sell Stop</SelectItem>
               </SelectContent>
             </Select>
           </Field>
           <Field label="سشن معاملاتی">
             <SessionPicker value={f.session} onChange={(v) => set("session", v)} />
           </Field>
-          <Field label="تاریخ و ساعت معامله">
+          <Field label="تاریخ و ساعت معامله" required> {/* ✅ اجباری شد */}
             <div className="flex gap-2">
               <Popover>
                 <PopoverTrigger asChild>
@@ -355,11 +368,11 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             </div>
           </Field>
           <Field label="قیمت ورود" required>{numberInput("entry_price", "0.00")}</Field>
-          <Field label="قیمت خروج">{numberInput("exit_price", "0.00")}</Field>
+          <Field label="قیمت خروج" required>{numberInput("exit_price", "0.00")}</Field> {/* ✅ اجباری شد */}
           <Field label="حد ضرر">{numberInput("stop_loss", "0.00")}</Field>
           <Field label="حد سود">{numberInput("take_profit", "0.00")}</Field>
           <Field label="حجم پوزیشن" required>{numberInput("position_size", "0.00")}</Field>
-          <Field label="ریسک (%)">{numberInput("risk_percent", "1.00")}</Field>
+          <Field label="ریسک (%)" required>{numberInput("risk_percent", "1.00")}</Field> {/* ✅ اجباری شد */}
         </div>
       </Section>
 
@@ -373,7 +386,24 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
 
       <Section title="کیفیت معامله">
         <p className="text-xs text-muted-foreground mb-3">معامله را بر اساس کیفیت اجرا و تطبیق با پلن ارزیابی کن.</p>
-        <QualityPicker value={f.quality} onChange={(v) => set("quality", v)} />
+        {/* ✅ کنترل و نمایش آپشن‌های جدید کیفیت */}
+        <div className="flex flex-wrap gap-2">
+          {["A+", "A", "A-", "B+", "B", "B-", "C+", "C"].map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => set("quality", f.quality === q ? null : q)}
+              className={cn(
+                "px-4 py-2 rounded-xl text-sm font-semibold border transition-all",
+                f.quality === q
+                  ? "bg-primary text-primary-foreground border-primary shadow-glow scale-105"
+                  : "border-border/60 hover:bg-accent"
+              )}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
       </Section>
 
       <Section title="قوانین نقض‌شده">
