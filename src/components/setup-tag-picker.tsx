@@ -7,11 +7,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-// تطبیق تایپ با ساختار کتابخانه ستاپ‌ها
 type SetupItem = {
   id: string;
   name: string;
-  user_id: string;
+  source: "library" | "tag";
 };
 
 export function SetupTagPicker({
@@ -28,28 +27,28 @@ export function SetupTagPicker({
   const [newName, setNewName] = useState("");
   const [editing, setEditing] = useState<Record<string, string>>({});
 
-  // ✅ ۱. اصلاح کوئری برای خواندن مستقیم از جدول ستاپ‌های کتابخانه و فیلتر بر اساس کاربر مانیتور شده
-  const { data: setups = [], isLoading } = useQuery({
-    queryKey: ["setups_library", userId],
+  // خواندن از هر دو جدول و merge کردن
+  const { data: allSetups = [], isLoading } = useQuery({
+    queryKey: ["all_setups", userId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("setups") // اگر اسم جدول کتابخانه شما setups است
-        .select("id, name, user_id")
-        .eq("user_id", userId) // حتماً باید ستاپ‌های خود کاربر فیلتر شود
-        .order("created_at", { ascending: true });
+      const [tagsRes, libraryRes] = await Promise.all([
+        supabase.from("setup_tags").select("id, name").eq("user_id", userId).order("created_at", { ascending: true }),
+        supabase.from("setups").select("id, name").eq("user_id", userId).order("created_at", { ascending: true }),
+      ]);
 
-      if (error) {
-        // فال‌بک به جدول تگ‌ها در صورتی که دیتابیس شما هنوز کاملاً ستاپ‌ها را تفکیک نکرده باشد
-        const fallback = await supabase
-          .from("setup_tags")
-          .select("id, name, user_id")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: true });
-          
-        if (fallback.error) throw fallback.error;
-        return (fallback.data ?? []) as SetupItem[];
+      const tags: SetupItem[] = (tagsRes.data ?? []).map((t) => ({ id: t.id, name: t.name, source: "tag" }));
+      const library: SetupItem[] = (libraryRes.data ?? []).map((s) => ({ id: s.id, name: s.name, source: "library" }));
+
+      // حذف تکراری‌ها بر اساس name
+      const seen = new Set<string>();
+      const merged: SetupItem[] = [];
+      for (const item of [...tags, ...library]) {
+        if (!seen.has(item.name)) {
+          seen.add(item.name);
+          merged.push(item);
+        }
       }
-      return (data ?? []) as SetupItem[];
+      return merged;
     },
   });
 
@@ -57,48 +56,33 @@ export function SetupTagPicker({
     onChange(value.includes(name) ? value.filter((n) => n !== name) : [...value, name]);
   };
 
-  const addSetup = async () => {
+  const addTag = async () => {
     const name = newName.trim();
     if (!name) return;
-    
-    // هماهنگ با جدول اصلی کتابخانه ستاپ‌ها
-    const targetTable = (qc.getQueryData(["setups_library", userId]) as any)?._fromTable === "setup_tags" ? "setup_tags" : "setups";
-    
-    const { error } = await supabase.from(targetTable).insert({ user_id: userId, name });
+    const { error } = await supabase.from("setup_tags").insert({ user_id: userId, name, is_default: false });
     if (error) return toast.error("افزودن ناموفق", { description: error.message });
-    
     setNewName("");
-    qc.invalidateQueries({ queryKey: ["setups_library", userId] });
-    toast.success("ستاپ جدید به کتابخانه اضافه شد");
+    qc.invalidateQueries({ queryKey: ["all_setups", userId] });
+    toast.success("تگ جدید اضافه شد");
   };
 
-  const saveEdit = async (id: string) => {
-    const name = editing[id]?.trim();
+  const saveEdit = async (item: SetupItem) => {
+    const name = editing[item.id]?.trim();
     if (!name) return;
-    
-    const { error } = await supabase.from("setups").update({ name }).eq("id", id);
-    if (error) {
-      // فال‌بک ادیت
-      await supabase.from("setup_tags").update({ name }).eq("id", id);
-    }
-    
-    setEditing((p) => { const n = { ...p }; delete n[id]; return n; });
-    qc.invalidateQueries({ queryKey: ["setups_library", userId] });
-    toast.success("تغییرات ذخیره شد");
+    const table = item.source === "library" ? "setups" : "setup_tags";
+    const { error } = await supabase.from(table).update({ name }).eq("id", item.id);
+    if (error) return toast.error("ویرایش ناموفق", { description: error.message });
+    setEditing((p) => { const n = { ...p }; delete n[item.id]; return n; });
+    qc.invalidateQueries({ queryKey: ["all_setups", userId] });
   };
 
-  const removeSetup = async (id: string, name: string) => {
-    if (!confirm(`حذف ستاپ «${name}» از کتابخانه؟`)) return;
-    
-    const { error } = await supabase.from("setups").delete().eq("id", id);
-    if (error) {
-      // فال‌بک حذف
-      await supabase.from("setup_tags").delete().eq("id", id);
-    }
-    
-    onChange(value.filter((n) => n !== name));
-    qc.invalidateQueries({ queryKey: ["setups_library", userId] });
-    toast.success("ستاپ حذف شد");
+  const removeItem = async (item: SetupItem) => {
+    if (!confirm(`حذف «${item.name}»؟`)) return;
+    const table = item.source === "library" ? "setups" : "setup_tags";
+    const { error } = await supabase.from(table).delete().eq("id", item.id);
+    if (error) return toast.error("حذف ناموفق", { description: error.message });
+    onChange(value.filter((n) => n !== item.name));
+    qc.invalidateQueries({ queryKey: ["all_setups", userId] });
   };
 
   return (
@@ -107,7 +91,7 @@ export function SetupTagPicker({
         {isLoading ? (
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
         ) : (
-          setups.map((s) => {
+          allSetups.map((s) => {
             const active = value.includes(s.name);
             return (
               <button
@@ -121,28 +105,36 @@ export function SetupTagPicker({
                 }`}
               >
                 {s.name}
+                {s.source === "library" && (
+                  <span className="mr-1 opacity-50 text-[9px]">📚</span>
+                )}
               </button>
             );
           })
         )}
-        
+
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <button type="button" className="px-3 py-1.5 rounded-full text-xs border border-dashed border-border/60 inline-flex items-center gap-1 hover:bg-accent/40 transition">
-              <Plus className="size-3" /> مدیریت کتابخانه ستاپ‌ها
+              <Plus className="size-3" /> تگ جدید / مدیریت
             </button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>مدیریت ستاپ‌های کتابخانه</DialogTitle>
+              <DialogTitle>مدیریت تگ‌های ستاپ</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div className="flex gap-2">
-                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="نام ستاپ جدید" />
-                <Button type="button" onClick={addSetup}><Plus className="size-4" /></Button>
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="نام تگ جدید"
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                />
+                <Button type="button" onClick={addTag}><Plus className="size-4" /></Button>
               </div>
               <div className="max-h-72 overflow-auto space-y-1.5">
-                {setups.map((s) => {
+                {allSetups.map((s) => {
                   const isEdit = editing[s.id] !== undefined;
                   return (
                     <div key={s.id} className="flex items-center gap-2 rounded-lg border border-border/50 p-2">
@@ -153,14 +145,17 @@ export function SetupTagPicker({
                           className="h-8"
                         />
                       ) : (
-                        <span className="flex-1 text-sm">{s.name}</span>
+                        <span className="flex-1 text-sm flex items-center gap-1">
+                          {s.name}
+                          {s.source === "library" && <span className="text-[10px] text-muted-foreground">(کتابخانه)</span>}
+                        </span>
                       )}
                       {isEdit ? (
-                        <Button size="sm" type="button" onClick={() => saveEdit(s.id)}>ذخیره</Button>
+                        <Button size="sm" type="button" onClick={() => saveEdit(s)}>ذخیره</Button>
                       ) : (
                         <Button size="sm" variant="ghost" type="button" onClick={() => setEditing((p) => ({ ...p, [s.id]: s.name }))}>ویرایش</Button>
                       )}
-                      <Button size="icon" variant="ghost" type="button" className="text-destructive" onClick={() => removeSetup(s.id, s.name)}>
+                      <Button size="icon" variant="ghost" type="button" className="text-destructive" onClick={() => removeItem(s)}>
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
