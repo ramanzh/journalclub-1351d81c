@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/use-auth";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Loader2, Info, ChevronDown, PlusCircle } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { formatNumber, formatPercent, marketLabel, type Account, type Trade } from "@/lib/trade-utils";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
@@ -320,12 +321,13 @@ function CalendarPage() {
         {/* دکمه معامله جدید — فقط برای روزهای گذشته */}
         {new Date(selected) < new Date(dayKey(new Date())) && (
           
-            href={`/trades/new?date=${selected}`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary border border-primary/30 px-3 py-1.5 text-xs font-medium hover:bg-primary/20 transition"
-          >
-            <PlusCircle className="size-3.5" />
-            معامله جدید
-          </a>
+            <Link
+  to="/trades/new"
+  className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary border border-primary/30 px-3 py-1.5 text-xs font-medium hover:bg-primary/20 transition"
+>
+  <PlusCircle className="size-3.5" />
+  معامله جدید
+</Link>
         )}
       </div>
     </div>
