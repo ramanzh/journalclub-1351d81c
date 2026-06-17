@@ -67,11 +67,19 @@ const HIGHLIGHTS = [
 function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      {/* Header */}
+      {/* Header - کاملاً فیکس و مرتب شده */}
       <header className="border-b border-border/40 backdrop-blur-md bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
+          {/* لوگو و نام سایت در گوشه راست بالا */}
+          <div className="flex items-center gap-2">
+            <div className="size-9 rounded-lg gradient-primary grid place-items-center shadow-glow">
+              <TrendingUp className="size-5 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-lg">ژورنال کلاب</span>
+          </div>
           
-          <nav className="flex items-center gap-3">
+          {/* منوهای دسترسی و دکمه‌ها در گوشه چپ بالا */}
+          <nav className="flex items-center gap-4">
             <a href="#features" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition">ویژگی‌ها</a>
             <a href="#contact" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition">تماس</a>
             <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition">ورود</Link>
@@ -131,17 +139,11 @@ function Landing() {
             </div>
           </Reveal>
 
-          {/* Mock trading dashboard preview */}
+          {/* Mock trading dashboard preview - نوار اضافی بالای آن کاملاً حذف شد */}
           <Reveal delay={450}>
             <div className="mt-14 max-w-4xl mx-auto">
-              <div className="relative rounded-2xl border border-border/60 bg-card/70 backdrop-blur shadow-glow overflow-hidden">
-                <div className="flex items-center gap-1.5 border-b border-border/40 px-4 py-2.5">
-                  <span className="size-2.5 rounded-full bg-destructive/80" />
-                  <span className="size-2.5 rounded-full bg-yellow-500/80" />
-                  <span className="size-2.5 rounded-full bg-primary/80" />
-                  <span className="ml-3 text-xs text-muted-foreground num">journalclub.app — داشبورد</span>
-                </div>
-                <div className="grid grid-cols-3 gap-3 p-4">
+              <div className="relative rounded-2xl border border-border/60 bg-card/70 backdrop-blur shadow-glow overflow-hidden pt-4">
+                <div className="grid grid-cols-3 gap-3 px-4 pb-4">
                   {[
                     { k: "نرخ برد", v: "۶۸٪", c: "text-primary" },
                     { k: "میانگین R:R", v: "۲.۴", c: "text-foreground" },
@@ -252,7 +254,7 @@ function Landing() {
                  <div className="font-bold group-hover:text-primary transition-colors duration-300">{a.label}</div>
                  <div className="text-[10px] text-muted-foreground mt-1">{a.desc}</div>
               </div>
-              ))}
+             ))}
             </div>
             <div className="order-1 md:order-2">
               <div className="inline-flex items-center gap-2 text-xs text-primary mb-3">
@@ -358,7 +360,6 @@ function DisciplineRow({ label, pct }: { label: string; pct: number }) {
 }
 
 function MiniChart() {
-  // Simple SVG equity curve
   const points = [10, 18, 14, 28, 22, 38, 32, 48, 44, 60, 56, 72, 68, 82];
   const max = Math.max(...points);
   const w = 800, h = 140, pad = 8;
