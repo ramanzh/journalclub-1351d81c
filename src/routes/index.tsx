@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  TrendingUp, LineChart, BookOpen, Wallet, BarChart3, Brain,
+  TrendingUp, BookOpen, Wallet, BarChart3, Brain,
   ArrowLeft, Phone, Mail, ShieldCheck, Sparkles, CalendarDays,
   Library, Target, Activity, CheckCircle2,
 } from "lucide-react";
@@ -67,10 +67,10 @@ const HIGHLIGHTS = [
 function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      {/* Header - کاملاً فیکس و مرتب شده */}
+      {/* Header */}
       <header className="border-b border-border/40 backdrop-blur-md bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          {/* لوگو و نام سایت در گوشه راست بالا */}
+          {/* لوگو و نام سایت */}
           <div className="flex items-center gap-2">
             <div className="size-9 rounded-lg gradient-primary grid place-items-center shadow-glow">
               <TrendingUp className="size-5 text-primary-foreground" />
@@ -78,7 +78,7 @@ function Landing() {
             <span className="font-bold text-lg">ژورنال کلاب</span>
           </div>
           
-          {/* منوهای دسترسی و دکمه‌ها در گوشه چپ بالا */}
+          {/* منوهای دسترسی و دکمه‌ها */}
           <nav className="flex items-center gap-4">
             <a href="#features" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition">ویژگی‌ها</a>
             <a href="#contact" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition">تماس</a>
@@ -136,27 +136,6 @@ function Landing() {
               <a href="#features" className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 backdrop-blur px-6 py-3 font-semibold hover:bg-card transition">
                 مشاهده ویژگی‌ها
               </a>
-            </div>
-          </Reveal>
-
-          {/* Mock trading dashboard preview - نوار اضافی بالای آن کاملاً حذف شد */}
-          <Reveal delay={450}>
-            <div className="mt-14 max-w-4xl mx-auto">
-              <div className="relative rounded-2xl border border-border/60 bg-card/70 backdrop-blur shadow-glow overflow-hidden pt-4">
-                <div className="grid grid-cols-3 gap-3 px-4 pb-4">
-                  {[
-                    { k: "نرخ برد", v: "۶۸٪", c: "text-primary" },
-                    { k: "میانگین R:R", v: "۲.۴", c: "text-foreground" },
-                    { k: "انضباط", v: "۸۴/۱۰۰", c: "text-primary" },
-                  ].map((s) => (
-                    <div key={s.k} className="rounded-xl border border-border/40 bg-background/40 p-3 text-right">
-                      <div className="text-[10px] text-muted-foreground mb-1">{s.k}</div>
-                      <div className={`text-lg font-bold num ${s.c}`}>{s.v}</div>
-                    </div>
-                  ))}
-                </div>
-                <MiniChart />
-              </div>
             </div>
           </Reveal>
         </div>
@@ -355,29 +334,6 @@ function DisciplineRow({ label, pct }: { label: string; pct: number }) {
       <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
         <div className={`h-full ${color} transition-all duration-700`} style={{ width: `${pct}%` }} />
       </div>
-    </div>
-  );
-}
-
-function MiniChart() {
-  const points = [10, 18, 14, 28, 22, 38, 32, 48, 44, 60, 56, 72, 68, 82];
-  const max = Math.max(...points);
-  const w = 800, h = 140, pad = 8;
-  const stepX = (w - pad * 2) / (points.length - 1);
-  const d = points.map((p, i) => `${i === 0 ? "M" : "L"} ${pad + i * stepX} ${h - pad - (p / max) * (h - pad * 2)}`).join(" ");
-  const fill = `${d} L ${w - pad} ${h - pad} L ${pad} ${h - pad} Z`;
-  return (
-    <div className="px-4 pb-4">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-32">
-        <defs>
-          <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={fill} fill="url(#lg)" />
-        <path d={d} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
     </div>
   );
 }
