@@ -26,7 +26,8 @@ import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 type FormState = {
   asset_name: string;
   market: Trade["market"];
-  side: Trade["side"] | "buy_limit" | "sell_limit" | "buy_stop" | "sell_stop"; // ✅ اضافه شدن اوردرهای لیمیت و استاپ
+  side: Trade["side"] | "buy_limit" | "sell_limit" | "buy_stop" | "sell_stop";
+  status: "active" | "closed"; // ✅ اضافه شدن وضعیت معامله برای تفکیک پوزیشن‌های باز و بسته
   account_id: string;
   entry_price: string;
   exit_price: string;
@@ -39,12 +40,12 @@ type FormState = {
   mistakes: string;
   lessons: string;
   notes: string;
-  trade_date: Date | undefined; // ✅ تغییر به undefined برای کنترل پر بودن
+  trade_date: Date | undefined;
   trade_time: string;
   setup_tags: string[];
   session: string;
   checklist: Record<string, boolean>;
-  quality: string | null; // ✅ تغییر تایپ برای پذیرش کیفیت‌های جدید
+  quality: string | null;
   broken_rules: string[];
 };
 
@@ -57,6 +58,7 @@ const toInitial = (t?: Trade): FormState => {
     asset_name: t?.asset_name ?? "",
     market: t?.market ?? "forex",
     side: (t?.side as any) ?? "buy",
+    status: (t as any)?.status ?? "closed", // پیش‌فرض معامله انجام‌شده است
     account_id: t?.account_id ?? "none",
     entry_price: numStr(t?.entry_price),
     exit_price: numStr(t?.exit_price),
@@ -191,7 +193,12 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
 
   const handleUpload = async (file: File) => {
     setUploading(true);
-    const path = `${userId}/${Date.now()}-${file.name}`;
+    
+    // ✅ حل مشکل حروف فارسی: پسوند فایل استخراج شده و کل نام فایل با یک ساختار انگلیسی یکتا جایگزین می‌شود
+    const fileExtension = file.name.split('.').pop() || 'png';
+    const cleanFileName = `chart_${Date.now()}.${fileExtension}`;
+    const path = `${userId}/${cleanFileName}`;
+    
     const { error } = await supabase.storage.from("trade-screenshots").upload(path, file, { upsert: true });
     if (error) { setUploading(false); toast.error("آپلود ناموفق", { description: error.message }); return; }
     setScreenshotUrl(path);
@@ -202,11 +209,16 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ── ✅ اعتبارسنجی فیلدهای اجباری به زبان فارسی (مورد ۷) ──
+    // ── ✅ اعتبارسنجی فیلدهای اجباری به زبان فارسی ──
     if (!f.market) return toast.error("خطای ثبت", { description: "لطفاً بازار معاملاتی را انتخاب کنید." });
     if (!f.asset_name.trim()) return toast.error("خطای ثبت", { description: "لطفاً نام جفت‌ارز یا شاخص را وارد کنید." });
     if (!f.entry_price) return toast.error("خطای ثبت", { description: "وارد کردن قیمت ورود اجباری است." });
-    if (!f.exit_price) return toast.error("خطای ثبت", { description: "وارد کردن قیمت خروج اجباری است." });
+    
+    // ✅ قیمت خروج فقط برای معاملات انجام‌شده (closed) اجباری است
+    if (f.status === "closed" && !f.exit_price) {
+      return toast.error("خطای ثبت", { description: "وارد کردن قیمت خروج برای معاملات انجام‌شده اجباری است." });
+    }
+    
     if (!f.position_size) return toast.error("خطای ثبت", { description: "وارد کردن حجم پوزیشن اجباری است." });
     if (!f.risk_percent) return toast.error("خطای ثبت", { description: "وارد کردن درصد ریسک اجباری است." });
     if (!f.trade_date) return toast.error("خطای ثبت", { description: "لطفاً تاریخ معامله را مشخص کنید." });
@@ -218,14 +230,14 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     d.setHours(hh || 0, mm || 0, 0, 0);
 
     const entryPrice = parseFloat(f.entry_price);
-    const exitPrice = parseFloat(f.exit_price);
+    const exitPrice = f.status === "closed" ? parseFloat(f.exit_price) : NaN;
     const positionSize = parseFloat(f.position_size);
 
     let profit_loss: number | null = null;
     let profit_loss_percent: number | null = null;
 
-    // محاسبه سود و زیان (برای جهت‌های جدید لیمیت و استاپ، منطق خرید یا فروش اعمال می‌شود)
-    if (!isNaN(entryPrice) && !isNaN(exitPrice) && !isNaN(positionSize)) {
+    // ✅ محاسبات سود و زیان فقط برای معاملات بسته شده انجام می‌شود تا روی بالانس تأثیر نگذارد
+    if (f.status === "closed" && !isNaN(entryPrice) && !isNaN(exitPrice) && !isNaN(positionSize)) {
       const isBuySide = f.side === "buy" || f.side === "buy_limit" || f.side === "buy_stop";
       if (isBuySide) {
         profit_loss = (exitPrice - entryPrice) * positionSize;
@@ -249,9 +261,10 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       account_id: f.account_id === "none" ? null : f.account_id,
       asset_name: f.asset_name.trim(),
       market: f.market,
-      side: f.side.startsWith("buy") ? "buy" : "sell", // تبدیل به فیلد استاندارد دیتابیس بومی شما
+      side: f.side.startsWith("buy") ? "buy" : "sell",
+      status: f.status, // ذخیره وضعیت فعال/بسته در دیتابیس
       entry_price: entryPrice,
-      exit_price: exitPrice,
+      exit_price: f.status === "closed" ? exitPrice : null,
       stop_loss: f.stop_loss ? parseFloat(f.stop_loss) : null,
       take_profit: f.take_profit ? parseFloat(f.take_profit) : null,
       position_size: positionSize,
@@ -259,8 +272,8 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       profit_loss,
       profit_loss_percent,
       emotion_before: f.emotion_before || null,
-      emotion_after: f.emotion_after || null,
-      mistakes: f.mistakes || null,
+      emotion_after: f.status === "closed" ? (f.emotion_after || null) : null,
+      mistakes: f.status === "closed" ? (f.mistakes || null) : null,
       lessons: f.lessons || null,
       notes: f.notes || null,
       trade_date: d.toISOString(),
@@ -268,7 +281,7 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       setup_tags: f.setup_tags,
       session: f.session || null,
       checklist: f.checklist,
-      quality: f.quality as TradeQuality,
+      quality: f.status === "closed" ? (f.quality as TradeQuality) : null,
       broken_rules: f.broken_rules,
     };
 
@@ -276,9 +289,10 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       ? await supabase.from("trades").update(payload).eq("id", trade.id)
       : await supabase.from("trades").insert(payload);
 
-    setSaving(false);
-    if (error) return toast.error("ذخیره ناموفق", { description: error.message });
+    setSaving(true);
+    if (error) { setSaving(false); return toast.error("ذخیره ناموفق", { description: error.message }); }
     toast.success(trade ? "معامله به‌روزرسانی شد" : "معامله ثبت شد");
+    setSaving(false);
     navigate({ to: "/trades" });
   };
 
@@ -298,7 +312,18 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
       <Section title="اطلاعات معامله">
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="بازار" required> {/* ✅ اجباری شد */}
+          {/* ✅ فیلد جدید تعیین وضعیت معامله فعال یا انجام شده */}
+          <Field label="وضعیت معامله" required>
+            <Select value={f.status} onValueChange={(v) => set("status", v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">معامله فعال است (پوزیشن باز)</SelectItem>
+                <SelectItem value="closed">معامله انجام شده است (پوزیشن بسته)</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="بازار" required>
             <Select value={f.market} onValueChange={(v) => set("market", v as Trade["market"])}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -336,7 +361,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             <Select value={f.side} onValueChange={(v) => set("side", v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {/* ✅ اضافه شدن اوردرهای پیشرفته (مورد ۴) */}
                 <SelectItem value="buy">خرید (Long)</SelectItem>
                 <SelectItem value="sell">فروش (Short)</SelectItem>
                 <SelectItem value="buy_limit">Buy Limit</SelectItem>
@@ -349,7 +373,7 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
           <Field label="سشن معاملاتی">
             <SessionPicker value={f.session} onChange={(v) => set("session", v)} />
           </Field>
-          <Field label="تاریخ و ساعت معامله" required> {/* ✅ اجباری شد */}
+          <Field label="تاریخ و ساعت معامله" required>
             <div className="flex gap-2">
               <Popover>
                 <PopoverTrigger asChild>
@@ -368,11 +392,16 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             </div>
           </Field>
           <Field label="قیمت ورود" required>{numberInput("entry_price", "0.00")}</Field>
-          <Field label="قیمت خروج" required>{numberInput("exit_price", "0.00")}</Field> {/* ✅ اجباری شد */}
+          
+          {/* ✅ فیلد قیمت خروج نمایش شرطی دارد؛ اگر معامله فعال باشد پنهان می‌شود و اگر انجام‌شده باشد اجباری است */}
+          {f.status === "closed" && (
+            <Field label="قیمت خروج" required>{numberInput("exit_price", "0.00")}</Field>
+          )}
+          
           <Field label="حد ضرر">{numberInput("stop_loss", "0.00")}</Field>
           <Field label="حد سود">{numberInput("take_profit", "0.00")}</Field>
           <Field label="حجم پوزیشن" required>{numberInput("position_size", "0.00")}</Field>
-          <Field label="ریسک (%)" required>{numberInput("risk_percent", "1.00")}</Field> {/* ✅ اجباری شد */}
+          <Field label="ریسک (%)" required>{numberInput("risk_percent", "1.00")}</Field>
         </div>
       </Section>
 
@@ -384,27 +413,29 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
         <ChecklistPicker userId={userId} value={f.checklist} onChange={(v) => set("checklist", v)} />
       </Section>
 
-      <Section title="کیفیت معامله">
-        <p className="text-xs text-muted-foreground mb-3">معامله را بر اساس کیفیت اجرا و تطبیق با پلن ارزیابی کن.</p>
-        {/* ✅ کنترل و نمایش آپشن‌های جدید کیفیت */}
-        <div className="flex flex-wrap gap-2">
-          {["A+", "A", "A-", "B+", "B", "B-", "C+", "C"].map((q) => (
-            <button
-              key={q}
-              type="button"
-              onClick={() => set("quality", f.quality === q ? null : q)}
-              className={cn(
-                "px-4 py-2 rounded-xl text-sm font-semibold border transition-all",
-                f.quality === q
-                  ? "bg-primary text-primary-foreground border-primary shadow-glow scale-105"
-                  : "border-border/60 hover:bg-accent"
-              )}
-            >
-              {q}
-            </button>
-          ))}
-        </div>
-      </Section>
+      {/* ✅ ارزیابی کیفیت فقط مربوط به معاملات انجام‌شده و بسته شده است */}
+      {f.status === "closed" && (
+        <Section title="کیفیت معامله">
+          <p className="text-xs text-muted-foreground mb-3">معامله را بر اساس کیفیت اجرا و تطبیق با پلن ارزیابی کن.</p>
+          <div className="flex flex-wrap gap-2">
+            {["A+", "A", "A-", "B+", "B", "B-", "C+", "C"].map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => set("quality", f.quality === q ? null : q)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-semibold border transition-all",
+                  f.quality === q
+                    ? "bg-primary text-primary-foreground border-primary shadow-glow scale-105"
+                    : "border-border/60 hover:bg-accent"
+                )}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section title="قوانین نقض‌شده">
         <BrokenRulesPicker value={f.broken_rules} onChange={(v) => set("broken_rules", v)} />
@@ -435,22 +466,37 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             <Label>احساس قبل از معامله</Label>
             <EmotionPicker phase="before" value={f.emotion_before} onChange={(v) => set("emotion_before", v)} />
           </div>
-          <div className="space-y-2">
-            <Label>احساس بعد از معامله</Label>
-            <EmotionPicker phase="after" value={f.emotion_after} onChange={(v) => set("emotion_after", v)} />
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <Field label="اشتباهات">
-              <Textarea rows={3} value={f.mistakes} onChange={(e) => set("mistakes", e.target.value)} placeholder="چه اشتباهی کردی؟" />
-            </Field>
-            <Field label="درس‌ها">
-              <Textarea rows={3} value={f.lessons} onChange={(e) => set("lessons", e.target.value)} placeholder="چه چیزی یاد گرفتی؟" />
-            </Field>
-            <div className="md:col-span-2">
-              <Field label="یادداشت‌های اضافی">
-                <Textarea rows={3} value={f.notes} onChange={(e) => set("notes", e.target.value)} />
+          
+          {/* ✅ فیلدهای احساسی بعد از معامله و اشتباهات فقط برای پوزیشن‌های بسته شده فعال می‌شوند */}
+          {f.status === "closed" && (
+            <>
+              <div className="space-y-2">
+                <Label>احساس بعد از معامله</Label>
+                <EmotionPicker phase="after" value={f.emotion_after} onChange={(v) => set("emotion_after", v)} />
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <Field label="اشتباهات">
+                  <Textarea rows={3} value={f.mistakes} onChange={(e) => set("mistakes", e.target.value)} placeholder="چه اشتباهی کردی؟" />
+                </Field>
+                <Field label="درس‌ها">
+                  <Textarea rows={3} value={f.lessons} onChange={(e) => set("lessons", e.target.value)} placeholder="چه چیزی یاد گرفتی؟" />
+                </Field>
+              </div>
+            </>
+          )}
+
+          {f.status === "active" && (
+            <div className="grid md:grid-cols-1 gap-4">
+              <Field label="درس‌ها و انتظارات از مارکت">
+                <Textarea rows={3} value={f.lessons} onChange={(e) => set("lessons", e.target.value)} placeholder="چه چیزی از این پوزیشن باز انتظار داری؟" />
               </Field>
             </div>
+          )}
+
+          <div className="md:col-span-2">
+            <Field label="یادداشت‌های اضافی">
+              <Textarea rows={3} value={f.notes} onChange={(e) => set("notes", e.target.value)} />
+            </Field>
           </div>
         </div>
       </Section>
