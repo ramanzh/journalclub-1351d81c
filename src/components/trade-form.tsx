@@ -27,7 +27,7 @@ type FormState = {
   asset_name: string;
   market: Trade["market"];
   side: Trade["side"] | "buy_limit" | "sell_limit" | "buy_stop" | "sell_stop";
-  status: "active" | "closed"; // ✅ اضافه شدن وضعیت معامله برای تفکیک پوزیشن‌های باز و بسته
+  status: "active" | "closed"; // مدیریت وضعیت فقط در فرانت‌اند
   account_id: string;
   entry_price: string;
   exit_price: string;
@@ -50,15 +50,18 @@ type FormState = {
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
-const numStr = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v));
+const numStr = (v: number | null | undefined) => (v === null || v === undefined || v === 0 ? "" : String(v));
 
 const toInitial = (t?: Trade): FormState => {
   const d = t?.trade_date ? new Date(t.trade_date) : new Date();
+  // معامله فعال است اگر قیمت خروج ثبت نشده یا صفر باشد
+  const isTradeActive = !t?.exit_price || t.exit_price === 0;
+
   return {
     asset_name: t?.asset_name ?? "",
     market: t?.market ?? "forex",
     side: (t?.side as any) ?? "buy",
-    status: (t as any)?.status ?? "closed", // پیش‌فرض معامله انجام‌شده است
+    status: isTradeActive ? "active" : "closed", 
     account_id: t?.account_id ?? "none",
     entry_price: numStr(t?.entry_price),
     exit_price: numStr(t?.exit_price),
@@ -193,8 +196,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
 
   const handleUpload = async (file: File) => {
     setUploading(true);
-    
-    // ✅ حل مشکل حروف فارسی: پسوند فایل استخراج شده و کل نام فایل با یک ساختار انگلیسی یکتا جایگزین می‌شود
     const fileExtension = file.name.split('.').pop() || 'png';
     const cleanFileName = `chart_${Date.now()}.${fileExtension}`;
     const path = `${userId}/${cleanFileName}`;
@@ -209,12 +210,10 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ── ✅ اعتبارسنجی فیلدهای اجباری به زبان فارسی ──
     if (!f.market) return toast.error("خطای ثبت", { description: "لطفاً بازار معاملاتی را انتخاب کنید." });
     if (!f.asset_name.trim()) return toast.error("خطای ثبت", { description: "لطفاً نام جفت‌ارز یا شاخص را وارد کنید." });
     if (!f.entry_price) return toast.error("خطای ثبت", { description: "وارد کردن قیمت ورود اجباری است." });
     
-    // ✅ قیمت خروج فقط برای معاملات انجام‌شده (closed) اجباری است
     if (f.status === "closed" && !f.exit_price) {
       return toast.error("خطای ثبت", { description: "وارد کردن قیمت خروج برای معاملات انجام‌شده اجباری است." });
     }
@@ -236,7 +235,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     let profit_loss: number | null = null;
     let profit_loss_percent: number | null = null;
 
-    // ✅ محاسبات سود و زیان فقط برای معاملات بسته شده انجام می‌شود تا روی بالانس تأثیر نگذارد
     if (f.status === "closed" && !isNaN(entryPrice) && !isNaN(exitPrice) && !isNaN(positionSize)) {
       const isBuySide = f.side === "buy" || f.side === "buy_limit" || f.side === "buy_stop";
       if (isBuySide) {
@@ -256,13 +254,13 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       }
     }
 
+    // ساخت Payload دیتابیس بدون فیلد اضافی status
     const payload = {
       user_id: userId,
       account_id: f.account_id === "none" ? null : f.account_id,
       asset_name: f.asset_name.trim(),
       market: f.market,
       side: f.side.startsWith("buy") ? "buy" : "sell",
-      status: f.status, // ذخیره وضعیت فعال/بسته در دیتابیس
       entry_price: entryPrice,
       exit_price: f.status === "closed" ? exitPrice : null,
       stop_loss: f.stop_loss ? parseFloat(f.stop_loss) : null,
@@ -289,7 +287,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
       ? await supabase.from("trades").update(payload).eq("id", trade.id)
       : await supabase.from("trades").insert(payload);
 
-    setSaving(true);
     if (error) { setSaving(false); return toast.error("ذخیره ناموفق", { description: error.message }); }
     toast.success(trade ? "معامله به‌روزرسانی شد" : "معامله ثبت شد");
     setSaving(false);
@@ -312,7 +309,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
     <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
       <Section title="اطلاعات معامله">
         <div className="grid md:grid-cols-2 gap-4">
-          {/* ✅ فیلد جدید تعیین وضعیت معامله فعال یا انجام شده */}
           <Field label="وضعیت معامله" required>
             <Select value={f.status} onValueChange={(v) => set("status", v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -393,7 +389,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
           </Field>
           <Field label="قیمت ورود" required>{numberInput("entry_price", "0.00")}</Field>
           
-          {/* ✅ فیلد قیمت خروج نمایش شرطی دارد؛ اگر معامله فعال باشد پنهان می‌شود و اگر انجام‌شده باشد اجباری است */}
           {f.status === "closed" && (
             <Field label="قیمت خروج" required>{numberInput("exit_price", "0.00")}</Field>
           )}
@@ -413,7 +408,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
         <ChecklistPicker userId={userId} value={f.checklist} onChange={(v) => set("checklist", v)} />
       </Section>
 
-      {/* ✅ ارزیابی کیفیت فقط مربوط به معاملات انجام‌شده و بسته شده است */}
       {f.status === "closed" && (
         <Section title="کیفیت معامله">
           <p className="text-xs text-muted-foreground mb-3">معامله را بر اساس کیفیت اجرا و تطبیق با پلن ارزیابی کن.</p>
@@ -467,7 +461,6 @@ export function TradeForm({ trade, userId }: { trade?: Trade; userId: string }) 
             <EmotionPicker phase="before" value={f.emotion_before} onChange={(v) => set("emotion_before", v)} />
           </div>
           
-          {/* ✅ فیلدهای احساسی بعد از معامله و اشتباهات فقط برای پوزیشن‌های بسته شده فعال می‌شوند */}
           {f.status === "closed" && (
             <>
               <div className="space-y-2">
