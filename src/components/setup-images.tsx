@@ -15,7 +15,15 @@ export function SetupImages({
     setUploading(true);
     const paths: string[] = [];
     for (const file of Array.from(files)) {
-      const path = `${userId}/${Date.now()}-${file.name}`;
+      // ۱. جدا کردن پسوند فایل (مانند png یا jpg)
+      const fileExtension = file.name.split('.').pop();
+      
+      // ۲. تولید یک رشته رندوم و کوتاه انگلیسی برای جایگزینی با نام فارسی
+      const randomId = Math.random().toString(36).substring(2, 10);
+      
+      // ۳. ساخت مسیر نهایی کاملاً انگلیسی و استاندارد
+      const path = `${userId}/${Date.now()}-${randomId}.${fileExtension}`;
+      
       const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
       if (error) toast.error("آپلود ناموفق", { description: error.message });
       else paths.push(path);
