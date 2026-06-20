@@ -8,7 +8,6 @@ import { ensureDefaultsSeeded } from "@/lib/seed-defaults";
 import {
   setupStats, sessionStats, emotionStats, checklistStats,
   qualityStats, ruleStats,
-  formatNumber,
   type Account, type ChecklistItem, type Trade, type TradingRule,
 } from "@/lib/trade-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,7 +35,7 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
-// ✅ تابع تبدیل اعداد و درصدها به لوکال کاملاً فارسی
+// ✅ تابع تبدیل سراسری اعداد به فارسی با تعداد رقم اعشار دلخواه
 const toPersianDigits = (num: number | string | null | undefined, frac = 0) => {
   if (num === null || num === undefined || num === "" || isNaN(Number(num))) return "—";
   const parsed = typeof num === "string" ? parseFloat(num) : num;
@@ -46,7 +45,7 @@ const toPersianDigits = (num: number | string | null | undefined, frac = 0) => {
   }).format(parsed);
 };
 
-// فرمت درصد کاملاً فارسی
+// فرمت درصد بدون مثبت (کاملاً فارسی)
 const fPct = (n: number | null | undefined, frac = 1) => {
   if (n === null || n === undefined || isNaN(Number(n))) return "—";
   return `${toPersianDigits(n, frac)}٪`;
@@ -99,11 +98,12 @@ function AnalyticsPage() {
   const rules = rulesQ.data ?? [];
   const loading = tradesQ.isLoading || accountsQ.isLoading || checklistQ.isLoading || rulesQ.isLoading;
 
-  // فیلتر کردن معاملات فعال از محاسبات
+  // فیلتر کردن معاملات: فقط معاملاتی که بسته شده‌اند وارد محاسبات آنالیز می‌شوند
   const closedTrades = useMemo(() => {
     return allTrades.filter((t) => t.exit_price !== null && t.exit_price !== 0);
   }, [allTrades]);
 
+  // تغذیه توابع محاسباتی با معاملات بسته شده
   const setups  = useMemo(() => setupStats(closedTrades, accounts), [closedTrades, accounts]);
   const sessions = useMemo(() => sessionStats(closedTrades, accounts), [closedTrades, accounts]);
   const emoB   = useMemo(() => emotionStats(closedTrades, "before"), [closedTrades]);
@@ -301,7 +301,16 @@ function AnalyticsPage() {
         {/* قوانین (بخش اصلی اصلاح شده) */}
         <TabsContent value="rules" className="mt-4 space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
-            <Stat label="امتیاز انضباط" value={`${toPersianDigits(rs.discipline)} از ۱۰۰`} positive />
+            <Stat 
+              label="امتیاز انضباط" 
+              value={
+                <div className="flex items-baseline justify-end gap-1.5" dir="rtl">
+                  <span>{toPersianDigits(rs.discipline)}</span>
+                  <span className="text-sm font-normal text-muted-foreground">از ۱۰۰</span>
+                </div>
+              } 
+              positive 
+            />
             <Stat label="قوانین رعایت‌شده" value={fPct(rs.followedPct, 0)} positive />
             <Stat label="قوانین نقض‌شده" value={fPct(rs.brokenPct, 0)} negative />
           </div>
@@ -374,7 +383,7 @@ function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) 
 
 function Stat({ label, value, sub, positive, negative }: {
   label: string;
-  value: string;
+  value: React.ReactNode; // ✅ برای پذیرش باکس‌های تراز شده چیدمان، به ReactNode ارتقا یافت
   sub?: string;
   positive?: boolean;
   negative?: boolean;
