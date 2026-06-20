@@ -144,10 +144,19 @@ function TradesPage() {
                       onClick={() => navigate({ to: "/trades/$id", params: { id: t.id } })}>
                       {formatNumber(t.entry_price, 4)}
                     </td>
-                    <td className="px-4 py-3 num"
+                    
+                    {/* بخش اصلاح شده نقطه خروج 👇 */}
+                    <td className="px-4 py-3"
                       onClick={() => navigate({ to: "/trades/$id", params: { id: t.id } })}>
-                      {t.exit_price === null ? "—" : formatNumber(t.exit_price, 4)}
+                      {t.exit_price === null ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 animate-pulse">
+                          فعال
+                        </span>
+                      ) : (
+                        <span className="num">{formatNumber(t.exit_price, 4)}</span>
+                      )}
                     </td>
+
                     <td className="px-4 py-3 num text-muted-foreground"
                       onClick={() => navigate({ to: "/trades/$id", params: { id: t.id } })}>
                       {t.risk_percent === null || t.risk_percent === undefined
