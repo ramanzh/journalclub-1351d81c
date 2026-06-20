@@ -36,10 +36,20 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
-// فرمت درصد بدون مثبت
+// ✅ تابع تبدیل اعداد و درصدها به لوکال کاملاً فارسی
+const toPersianDigits = (num: number | string | null | undefined, frac = 0) => {
+  if (num === null || num === undefined || num === "" || isNaN(Number(num))) return "—";
+  const parsed = typeof num === "string" ? parseFloat(num) : num;
+  return new Intl.NumberFormat("fa-IR", {
+    minimumFractionDigits: frac,
+    maximumFractionDigits: frac,
+  }).format(parsed);
+};
+
+// فرمت درصد کاملاً فارسی
 const fPct = (n: number | null | undefined, frac = 1) => {
   if (n === null || n === undefined || isNaN(Number(n))) return "—";
-  return `${formatNumber(n, frac)}٪`;
+  return `${toPersianDigits(n, frac)}٪`;
 };
 
 function AnalyticsPage() {
@@ -89,12 +99,11 @@ function AnalyticsPage() {
   const rules = rulesQ.data ?? [];
   const loading = tradesQ.isLoading || accountsQ.isLoading || checklistQ.isLoading || rulesQ.isLoading;
 
-  // ✅ فیلتر کردن معاملات: فقط معاملاتی که بسته شده‌اند (قیمت خروج دارند و صفر نیستند) وارد محاسبات آنالیز می‌شوند
+  // فیلتر کردن معاملات فعال از محاسبات
   const closedTrades = useMemo(() => {
     return allTrades.filter((t) => t.exit_price !== null && t.exit_price !== 0);
   }, [allTrades]);
 
-  // تغذیه توابع محاسباتی با معاملات بسته شده (closedTrades)
   const setups  = useMemo(() => setupStats(closedTrades, accounts), [closedTrades, accounts]);
   const sessions = useMemo(() => sessionStats(closedTrades, accounts), [closedTrades, accounts]);
   const emoB   = useMemo(() => emotionStats(closedTrades, "before"), [closedTrades]);
@@ -139,11 +148,11 @@ function AnalyticsPage() {
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} width={32} />
+                  <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => toPersianDigits(v)} />
                   <Tooltip
                     cursor={{ fill: "rgba(255,255,255,0.04)" }}
                     contentStyle={tooltipStyle}
-                    formatter={(v: number) => [`${v}٪`, "نرخ برد"]}
+                    formatter={(v: number) => [`${toPersianDigits(v, 1)}٪`, "نرخ برد"]}
                   />
                   <Bar dataKey="winRate" radius={[6, 6, 0, 0]} maxBarSize={40}>
                     {setups.map((_, i) => <Cell key={i} fill={BAR_COLOR} />)}
@@ -157,7 +166,7 @@ function AnalyticsPage() {
               head={["ستاپ", "تعداد", "نرخ برد", "میانگین سود", "میانگین ریسک"]}
               rows={setups.map((s) => [
                 s.name,
-                formatNumber(s.trades, 0),
+                toPersianDigits(s.trades, 0),
                 fPct(s.winRate, 1),
                 fPct(s.avgPL),
                 fPct(s.avgRisk),
@@ -181,12 +190,12 @@ function AnalyticsPage() {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} width={32} />
+                <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => toPersianDigits(v)} />
                 <Tooltip
                   cursor={{ fill: "rgba(255,255,255,0.04)" }}
                   contentStyle={tooltipStyle}
                   formatter={(v: number, name: string) => [
-                    `${v}${name === "winRate" ? "٪" : ""}`,
+                    `${toPersianDigits(v, name === "winRate" ? 1 : 2)}${name === "winRate" ? "٪" : ""}`,
                     name === "winRate" ? "نرخ برد" : "رشد",
                   ]}
                 />
@@ -200,7 +209,7 @@ function AnalyticsPage() {
               head={["سشن", "تعداد", "نرخ برد", "میانگین ریسک", "رشد"]}
               rows={sessions.map((s) => [
                 s.label,
-                formatNumber(s.trades, 0),
+                toPersianDigits(s.trades, 0),
                 fPct(s.winRate, 1),
                 fPct(s.avgRisk),
                 fPct(s.growth),
@@ -217,7 +226,7 @@ function AnalyticsPage() {
                 head={["احساس", "تعداد", "نرخ برد", "نرخ باخت"]}
                 rows={emoB.map((e) => [
                   e.label,
-                  formatNumber(e.count, 0),
+                  toPersianDigits(e.count, 0),
                   fPct(e.winRate, 1),
                   fPct(e.lossRate, 1),
                 ])}
@@ -230,7 +239,7 @@ function AnalyticsPage() {
                 head={["احساس", "تعداد", "نرخ برد", "نرخ باخت"]}
                 rows={emoA.map((e) => [
                   e.label,
-                  formatNumber(e.count, 0),
+                  toPersianDigits(e.count, 0),
                   fPct(e.winRate, 1),
                   fPct(e.lossRate, 1),
                 ])}
@@ -242,13 +251,13 @@ function AnalyticsPage() {
         {/* چک‌لیست */}
         <TabsContent value="checklist" className="mt-4 space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
-            <Stat label="نرخ برد با چک‌لیست کامل" value={fPct(chk.fullWinRate, 1)} sub={`${chk.fullCount} معامله`} positive />
+            <Stat label="نرخ برد با چک‌لیست کامل" value={fPct(chk.fullWinRate, 1)} sub={`${toPersianDigits(chk.fullCount)} معامله`} positive />
             <Stat label="امتیاز انضباط چک‌لیست" value={fPct(chk.discipline, 0)} />
           </div>
           <Card title="مواردی که بیشتر نادیده گرفته شده‌اند">
             <Table
               head={["مورد", "دفعات نادیده‌گرفتن"]}
-              rows={chk.mostIgnored.map((i) => [i.label, formatNumber(i.ignoredCount, 0)])}
+              rows={chk.mostIgnored.map((i) => [i.label, toPersianDigits(i.ignoredCount, 0)])}
             />
           </Card>
         </TabsContent>
@@ -264,11 +273,11 @@ function AnalyticsPage() {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} width={32} />
+                <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => toPersianDigits(v)} />
                 <Tooltip
                   cursor={{ fill: "rgba(255,255,255,0.04)" }}
                   contentStyle={tooltipStyle}
-                  formatter={(v: number) => [`${v}٪`, "نرخ برد"]}
+                  formatter={(v: number) => [`${toPersianDigits(v, 1)}٪`, "نرخ برد"]}
                 />
                 <Bar dataKey="winRate" radius={[6, 6, 0, 0]} maxBarSize={40}>
                   {qual.map((_, i) => <Cell key={i} fill={BAR_COLOR} />)}
@@ -281,7 +290,7 @@ function AnalyticsPage() {
               head={["کیفیت", "تعداد", "نرخ برد", "میانگین سود"]}
               rows={qual.map((q) => [
                 q.quality,
-                formatNumber(q.trades, 0),
+                toPersianDigits(q.trades, 0),
                 fPct(q.winRate, 1),
                 fPct(q.avgPL),
               ])}
@@ -289,10 +298,10 @@ function AnalyticsPage() {
           </Card>
         </TabsContent>
 
-        {/* قوانین */}
+        {/* قوانین (بخش اصلی اصلاح شده) */}
         <TabsContent value="rules" className="mt-4 space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
-            <Stat label="امتیاز انضباط" value={`${rs.discipline}/۱۰۰`} positive />
+            <Stat label="امتیاز انضباط" value={`${toPersianDigits(rs.discipline)} از ۱۰۰`} positive />
             <Stat label="قوانین رعایت‌شده" value={fPct(rs.followedPct, 0)} positive />
             <Stat label="قوانین نقض‌شده" value={fPct(rs.brokenPct, 0)} negative />
           </div>
@@ -301,8 +310,8 @@ function AnalyticsPage() {
               head={["قانون", "تعداد نقض", "تعداد رعایت"]}
               rows={rs.perRule.map((p) => [
                 p.title,
-                formatNumber(p.brokenCount, 0),
-                formatNumber(p.followedCount, 0),
+                toPersianDigits(p.brokenCount, 0),
+                toPersianDigits(p.followedCount, 0),
               ])}
             />
           </Card>
