@@ -21,7 +21,15 @@ export function JournalImages({
     setUploading(true);
     const paths: string[] = [];
     for (const file of Array.from(files)) {
-      const path = `${userId}/${Date.now()}-${file.name}`;
+      // ۱. استخراج پسوند فایل (مثلاً png یا jpg)
+      const fileExtension = file.name.split('.').pop();
+      
+      // ۲. ساخت یک شناسه رندوم کوتاه انگلیسی
+      const randomId = Math.random().toString(36).substring(2, 10);
+      
+      // ۳. ایجاد مسیر کاملاً انگلیسی و استاندارد
+      const path = `${userId}/${Date.now()}-${randomId}.${fileExtension}`;
+      
       const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
       if (error) {
         toast.error("آپلود ناموفق", { description: error.message });
