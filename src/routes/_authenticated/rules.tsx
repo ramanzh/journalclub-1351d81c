@@ -5,9 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/lib/use-auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, CheckCircle, XCircle } from "lucide-react";
 import type { TradingRule } from "@/lib/trade-utils";
 
@@ -26,7 +23,6 @@ const toPersianDigits = (num: number | string | null | undefined) => {
 
 function RulesPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [title, setTitle] = useState("");
@@ -62,12 +58,12 @@ function RulesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
-      toast({ title: "قانون جدید با موفقیت ثبت شد." });
+      alert("قانون جدید با موفقیت ثبت شد.");
       setTitle("");
       setDescription("");
     },
     onError: () => {
-      toast({ title: "خطا در ثبت قانون", variant: "destructive" });
+      alert("خطا در ثبت قانون معاملاتی");
     },
   });
 
@@ -79,7 +75,7 @@ function RulesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
-      toast({ title: "قانون مورد نظر حذف شد." });
+      alert("قانون مورد نظر حذف شد.");
     },
   });
 
@@ -119,20 +115,20 @@ function RulesPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5 text-right">
               <label className="text-xs text-muted-foreground">عنوان قانون</label>
-              <Input
+              <input
                 placeholder="مثلاً: عدم ورود در زمان اخبار ژانویه یا رعایت حد ضرر"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="text-right"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-right"
               />
             </div>
             <div className="space-y-1.5 text-right">
               <label className="text-xs text-muted-foreground">توضیحات تکمیلی (اختیاری)</label>
-              <Textarea
+              <textarea
                 placeholder="جزئیات بیشتری درباره این قانون بنویسید..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="text-right min-h-[80px]"
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-right"
               />
             </div>
             <Button type="submit" disabled={createMutation.isPending} className="w-full gap-1.5">
@@ -144,7 +140,7 @@ function RulesPage() {
 
         {/* لیست قوانین */}
         <div className="space-y-3">
-          <h3 className="font-semibold text-right text-sm text-muted-foreground px-1">ليست قوانین شما</h3>
+          <h3 className="font-semibold text-right text-sm text-muted-foreground px-1">لیست قوانین شما</h3>
           
           {isLoading ? (
             <div className="grid place-items-center py-12">
