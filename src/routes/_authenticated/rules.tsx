@@ -1,195 +1,218 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/lib/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, Plus, Pencil, Trash2, ShieldCheck, AlertTriangle, Target } from "lucide-react";
-import { toast } from "sonner";
-import { ruleStats, type Trade, type TradingRule } from "@/lib/trade-utils";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Plus, Trash2, CheckCircle, XCircle } from "lucide-react";
+import type { TradingRule } from "@/lib/trade-utils";
 
 export const Route = createFileRoute("/_authenticated/rules")({
   head: () => ({ meta: [{ title: "قوانین معاملاتی | ژورنال کلاب" }] }),
   component: RulesPage,
 });
 
-const SUGGESTIONS = [
-  "حداکثر ۳ معامله در روز",
-  "حداکثر ۱٪ ریسک در هر معامله",
-  "بدون معامله در زمان اخبار مهم",
-  "بدون معامله انتقامی",
-  "بدون معامله بعد از ۲ ضرر پی‌درپی",
-  "فقط در سشن لندن معامله کن",
-];
+// ✅ تابع تبدیل سراسری اعداد به فارسی
+const toPersianDigits = (num: number | string | null | undefined) => {
+  if (num === null || num === undefined || num === "") return "۰";
+  const parsed = typeof num === "string" ? parseFloat(num) : num;
+  if (isNaN(parsed)) return String(num);
+  return new Intl.NumberFormat("fa-IR").format(parsed);
+};
 
 function RulesPage() {
   const { user } = useAuth();
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<TradingRule | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [active, setActive] = useState(true);
 
-  const rulesQ = useQuery({
+  // دریافت لیست قوانین
+  const { data: rules = [], isLoading } = useQuery({
     queryKey: ["trading_rules"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trading_rules").select("*").order("created_at");
+      const { data, error } = await supabase
+        .from("trading_rules")
+        .select("*")
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as TradingRule[];
     },
     enabled: !!user,
   });
-  const tradesQ = useQuery({
-    queryKey: ["trades", "all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("trades").select("*");
+
+  // میوتیشن ثبت قانون جدید
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.from("trading_rules").insert([
+        {
+          user_id: user?.id,
+          title,
+          description: description || null,
+          active: true,
+        },
+      ]);
       if (error) throw error;
-      return (data ?? []) as Trade[];
+      return data;
     },
-    enabled: !!user,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
+      toast({ title: "قانون جدید با موفقیت ثبت شد." });
+      setTitle("");
+      setDescription("");
+    },
+    onError: () => {
+      toast({ title: "خطا در ثبت قانون", variant: "destructive" });
+    },
   });
 
-  const rules = rulesQ.data ?? [];
-  const trades = tradesQ.data ?? [];
-  const stats = ruleStats(trades, rules);
+  // میوتیشن حذف قانون
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("trading_rules").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
+      toast({ title: "قانون مورد نظر حذف شد." });
+    },
+  });
 
-  const reset = () => { setTitle(""); setDescription(""); setActive(true); setEditing(null); };
-  const openNew = () => { reset(); setOpen(true); };
-  const openEdit = (r: TradingRule) => {
-    setEditing(r); setTitle(r.title); setDescription(r.description ?? ""); setActive(r.active); setOpen(true);
+  // میوتیشن تغییر وضعیت فعال/غیرفعال بودن
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const { error } = await supabase.from("trading_rules").update({ active }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    createMutation.mutate();
   };
-
-  const save = async () => {
-    if (!user || !title.trim()) return;
-    const payload = { title: title.trim(), description: description.trim() || null, active };
-    const { error } = editing
-      ? await supabase.from("trading_rules").update(payload).eq("id", editing.id)
-      : await supabase.from("trading_rules").insert({ ...payload, user_id: user.id });
-    if (error) return toast.error("ذخیره ناموفق", { description: error.message });
-    toast.success(editing ? "قانون به‌روزرسانی شد" : "قانون اضافه شد");
-    setOpen(false); reset();
-    qc.invalidateQueries({ queryKey: ["trading_rules"] });
-  };
-
-  const remove = async (r: TradingRule) => {
-    if (!confirm(`حذف قانون «${r.title}»؟`)) return;
-    const { error } = await supabase.from("trading_rules").delete().eq("id", r.id);
-    if (error) return toast.error("حذف ناموفق", { description: error.message });
-    qc.invalidateQueries({ queryKey: ["trading_rules"] });
-  };
-
-  const addSuggestion = async (s: string) => {
-    if (!user) return;
-    const { error } = await supabase.from("trading_rules").insert({ user_id: user.id, title: s, active: true });
-    if (error) return toast.error("افزودن ناموفق", { description: error.message });
-    qc.invalidateQueries({ queryKey: ["trading_rules"] });
-  };
-
-  const loading = rulesQ.isLoading || tradesQ.isLoading;
 
   return (
-    <AppShell title="قوانین معاملاتی">
-      {loading ? (
-        <div className="grid place-items-center py-24"><Loader2 className="size-6 animate-spin text-primary" /></div>
-      ) : (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="امتیاز انضباط" value={`${stats.discipline}/100`} Icon={Target} accent="text-primary" />
-            <StatCard label="قوانین رعایت‌شده" value={`${stats.followedPct.toFixed(0)}٪`} Icon={ShieldCheck} accent="text-primary" />
-            <StatCard label="قوانین نقض‌شده" value={`${stats.brokenPct.toFixed(0)}٪`} Icon={AlertTriangle} accent="text-destructive" />
-            <StatCard label="بیشترین نقض" value={stats.mostBroken?.title ?? "—"} Icon={AlertTriangle} accent="text-destructive" small />
-          </div>
+    <AppShell title="مدیریت قوانین معاملاتی">
+      <div className="space-y-6" dir="rtl">
+        {/* هدر آمار کوچک */}
+        <div className="flex justify-between items-center bg-card border border-border/60 rounded-xl p-4">
+          <span className="text-sm text-muted-foreground">کل قوانین تعریف شده</span>
+          <span className="text-xl font-bold text-primary num">
+            {toPersianDigits(rules.length)} قانون
+          </span>
+        </div>
 
-          <div className="gradient-card rounded-2xl border border-border/60 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">قوانین من</h3>
-              <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
-                <DialogTrigger asChild>
-                  <Button onClick={openNew} className="gradient-primary text-primary-foreground">
-                    <Plus className="size-4 ml-1" /> قانون جدید
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>{editing ? "ویرایش قانون" : "قانون جدید"}</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5"><Label>عنوان</Label>
-                      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثال: حداکثر ۱٪ ریسک" /></div>
-                    <div className="space-y-1.5"><Label>توضیحات (اختیاری)</Label>
-                      <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={active} onCheckedChange={setActive} />
-                      <Label>فعال</Label>
+        {/* فرم افزودن قانون */}
+        <div className="gradient-card rounded-2xl border border-border/60 p-5">
+          <h3 className="font-semibold mb-4 text-right flex items-center gap-2">
+            <Plus className="size-4 text-primary" /> تعریف قانون جدید
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5 text-right">
+              <label className="text-xs text-muted-foreground">عنوان قانون</label>
+              <Input
+                placeholder="مثلاً: عدم ورود در زمان اخبار ژانویه یا رعایت حد ضرر"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="text-right"
+              />
+            </div>
+            <div className="space-y-1.5 text-right">
+              <label className="text-xs text-muted-foreground">توضیحات تکمیلی (اختیاری)</label>
+              <Textarea
+                placeholder="جزئیات بیشتری درباره این قانون بنویسید..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="text-right min-h-[80px]"
+              />
+            </div>
+            <Button type="submit" disabled={createMutation.isPending} className="w-full gap-1.5">
+              {createMutation.isPending && <Loader2 className="size-4 animate-spin" />}
+              ثبت قانون جدید
+            </Button>
+          </form>
+        </div>
+
+        {/* لیست قوانین */}
+        <div className="space-y-3">
+          <h3 className="font-semibold text-right text-sm text-muted-foreground px-1">ليست قوانین شما</h3>
+          
+          {isLoading ? (
+            <div className="grid place-items-center py-12">
+              <Loader2 className="size-6 animate-spin text-primary" />
+            </div>
+          ) : rules.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center bg-card/40 rounded-xl border border-dashed border-border">
+              هنوز هیچ قانون معاملاتی ثبت نکرده‌اید.
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {rules.map((rule, index) => (
+                <div
+                  key={rule.id}
+                  className="bg-card border border-border/60 rounded-xl p-4 flex items-center justify-between gap-4 hover:border-border transition"
+                >
+                  <div className="flex items-start gap-3 text-right">
+                    {/* ردیف فارسی شده */}
+                    <span className="text-xs font-medium text-muted-foreground bg-muted size-5 rounded-full flex items-center justify-center num mt-0.5">
+                      {toPersianDigits(index + 1)}
+                    </span>
+                    <div>
+                      <h4 className={`font-medium text-sm ${!rule.active ? "line-through text-muted-foreground" : ""}`}>
+                        {rule.title}
+                      </h4>
+                      {rule.description && (
+                        <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">
+                          {rule.description}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <DialogFooter>
-                    <Button variant="ghost" onClick={() => setOpen(false)}>انصراف</Button>
-                    <Button onClick={save} className="gradient-primary text-primary-foreground">ذخیره</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
 
-            {rules.length === 0 ? (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">هنوز قانونی نداری. می‌توانی از پیشنهادها انتخاب کنی:</p>
-                <div className="flex flex-wrap gap-2">
-                  {SUGGESTIONS.map((s) => (
-                    <button key={s} onClick={() => addSuggestion(s)}
-                      className="px-3 py-1.5 rounded-full text-xs border border-dashed border-border/60 hover:bg-accent/40 transition inline-flex items-center gap-1">
-                      <Plus className="size-3" /> {s}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* دکمه فعال / غیرفعال کردن */}
+                    <button
+                      type="button"
+                      onClick={() => toggleMutation.mutate({ id: rule.id, active: !rule.active })}
+                      title={rule.active ? "غیرفعال کردن" : "فعال کردن"}
+                      className={`p-1.5 rounded-lg border transition ${
+                        rule.active
+                          ? "border-primary/20 text-primary hover:bg-primary/10"
+                          : "border-muted text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {rule.active ? <CheckCircle className="size-4" /> : <XCircle className="size-4" />}
                     </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {rules.map((r) => {
-                  const ps = stats.perRule.find((p) => p.id === r.id);
-                  return (
-                    <div key={r.id} className="flex items-start justify-between gap-3 rounded-xl border border-border/40 p-3 hover:border-primary/40 transition">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`size-2 rounded-full ${r.active ? "bg-primary" : "bg-muted-foreground/40"}`} />
-                          <span className="font-medium">{r.title}</span>
-                          {ps && ps.brokenCount > 0 && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/15 text-destructive">
-                              {ps.brokenCount} بار نقض
-                            </span>
-                          )}
-                        </div>
-                        {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="size-4" /></Button>
-                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(r)}><Trash2 className="size-4" /></Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </AppShell>
-  );
-}
 
-function StatCard({ label, value, Icon, accent, small }: { label: string; value: string; Icon: React.ComponentType<{ className?: string }>; accent?: string; small?: boolean }) {
-  return (
-    <div className="gradient-card rounded-2xl border border-border/60 p-5">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <Icon className={`size-4 ${accent ?? ""}`} />
+                    {/* دکمه حذف */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm("آیا از حذف این قانون مطمئن هستید؟")) {
+                          deleteMutation.mutate(rule.id);
+                        }
+                      }}
+                      className="p-1.5 rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10 transition"
+                      title="حذف قانون"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <div className={`${small ? "text-sm" : "text-2xl"} font-bold num ${accent ?? ""}`}>{value}</div>
-    </div>
+    </AppShell>
   );
 }
