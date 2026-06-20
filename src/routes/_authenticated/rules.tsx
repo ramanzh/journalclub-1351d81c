@@ -7,30 +7,22 @@ import { useAuth } from "@/lib/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, CheckCircle, XCircle } from "lucide-react";
 import type { TradingRule } from "@/lib/trade-utils";
 
 export const Route = createFileRoute("/_authenticated/rules")({
-  head: () => ({ meta: [{ title: "قوانین معاملاتی | ژورنال کلاب" }] }),
   component: RulesPage,
 });
 
-// ✅ تابع تبدیل سراسری اعداد به فارسی
-const toPersianDigits = (num: number | string | null | undefined) => {
-  if (num === null || num === undefined || num === "") return "۰";
-  const parsed = typeof num === "string" ? parseFloat(num) : num;
-  if (isNaN(parsed)) return String(num);
-  return new Intl.NumberFormat("fa-IR").format(parsed);
-};
-
 function RulesPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
-  // دریافت لیست قوانین
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ["trading_rules"],
     queryFn: async () => {
@@ -44,7 +36,6 @@ function RulesPage() {
     enabled: !!user,
   });
 
-  // میوتیشن ثبت قانون جدید
   const createMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.from("trading_rules").insert([
@@ -60,12 +51,22 @@ function RulesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
+      toast({
+        title: "Rule created",
+        description: "Your trading rule has been saved successfully.",
+      });
       setTitle("");
       setDescription("");
     },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create rule",
+        variant: "destructive",
+      });
+    },
   });
 
-  // میوتیشن حذف قانون
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("trading_rules").delete().eq("id", id);
@@ -73,17 +74,37 @@ function RulesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
+      toast({
+        title: "Rule deleted",
+        description: "The trading rule has been removed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete rule",
+        variant: "destructive",
+      });
     },
   });
 
-  // میوتیشن تغییر وضعیت فعال/غیرفعال بودن
   const toggleMutation = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const { error } = await supabase.from("trading_rules").update({ active }).eq("id", id);
+      const { error } = await supabase
+        .from("trading_rules")
+        .update({ active })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update rule",
+        variant: "destructive",
+      });
     },
   });
 
@@ -94,111 +115,85 @@ function RulesPage() {
   };
 
   return (
-    <AppShell title="مدیریت قوانین معاملاتی">
-      <div className="space-y-6" dir="rtl">
-        {/* هدر آمار کوچک */}
-        <div className="flex justify-between items-center bg-card border border-border/60 rounded-xl p-4">
-          <span className="text-sm text-muted-foreground">کل قوانین تعریف شده</span>
-          <span className="text-xl font-bold text-primary num">
-            {toPersianDigits(rules.length)} قانون
-          </span>
-        </div>
-
-        {/* فرم افزودن قانون */}
-        <div className="gradient-card rounded-2xl border border-border/60 p-5">
-          <h3 className="font-semibold mb-4 text-right flex items-center gap-2">
-            <Plus className="size-4 text-primary" /> تعریف قانون جدید
+    <AppShell title="Trading Rules">
+      <div className="space-y-6">
+        <div className="gradient-card rounded-2xl border border-border/60 p-6">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <Plus className="size-4 text-primary" /> Add New Rule
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5 text-right">
-              <label className="text-xs text-muted-foreground">عنوان قانون</label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Rule Title</label>
               <Input
-                placeholder="مثلاً: عدم ورود در زمان اخبار ژانویه یا رعایت حد ضرر"
+                placeholder="e.g., Don't trade during high-impact news"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="text-right"
               />
             </div>
-            <div className="space-y-1.5 text-right">
-              <label className="text-xs text-muted-foreground">توضیحات تکمیلی (اختیاری)</label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Description (Optional)</label>
               <Textarea
-                placeholder="جزئیات بیشتری درباره این قانون بنویسید..."
+                placeholder="Add more details or specific criteria..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="text-right min-h-[80px]"
+                className="min-h-[100px]"
               />
             </div>
-            <Button type="submit" disabled={createMutation.isPending} className="w-full gap-1.5">
+            <Button type="submit" disabled={createMutation.isPending} className="w-full gap-2">
               {createMutation.isPending && <Loader2 className="size-4 animate-spin" />}
-              ثبت قانون جدید
+              Create Rule
             </Button>
           </form>
         </div>
 
-        {/* لیست قوانین */}
-        <div className="space-y-3">
-          <h3 className="font-semibold text-right text-sm text-muted-foreground px-1">لیست قوانین شما</h3>
+        <div className="space-y-4">
+          <h3 className="font-semibold text-lg">Your Rules</h3>
           
           {isLoading ? (
-            <div className="grid place-items-center py-12">
-              <Loader2 className="size-6 animate-spin text-primary" />
+            <div className="flex justify-center py-8">
+              <Loader2 className="size-8 animate-spin text-primary" />
             </div>
           ) : rules.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center bg-card/40 rounded-xl border border-dashed border-border">
-              هنوز هیچ قانون معاملاتی ثبت نکرده‌اید.
+            <p className="text-muted-foreground text-center py-8 bg-card rounded-xl border border-dashed border-border">
+              No trading rules defined yet. Create your first rule above!
             </p>
           ) : (
-            <div className="grid gap-3">
-              {rules.map((rule, index) => (
+            <div className="grid gap-4">
+              {rules.map((rule) => (
                 <div
                   key={rule.id}
-                  className="bg-card border border-border/60 rounded-xl p-4 flex items-center justify-between gap-4 hover:border-border transition"
+                  className="bg-card border border-border/60 rounded-xl p-4 flex items-center justify-between gap-4"
                 >
-                  <div className="flex items-start gap-3 text-right">
-                    {/* ردیف فارسی شده */}
-                    <span className="text-xs font-medium text-muted-foreground bg-muted size-5 rounded-full flex items-center justify-center num mt-0.5">
-                      {toPersianDigits(index + 1)}
-                    </span>
-                    <div>
-                      <h4 className={`font-medium text-sm ${!rule.active ? "line-through text-muted-foreground" : ""}`}>
-                        {rule.title}
-                      </h4>
-                      {rule.description && (
-                        <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">
-                          {rule.description}
-                        </p>
-                      )}
-                    </div>
+                  <div className="space-y-1">
+                    <h4 className={`font-medium ${!rule.active ? "line-through text-muted-foreground" : ""}`}>
+                      {rule.title}
+                    </h4>
+                    {rule.description && (
+                      <p className="text-sm text-muted-foreground">{rule.description}</p>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* دکمه فعال / غیرفعال کردن */}
-                    <button
-                      type="button"
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => toggleMutation.mutate({ id: rule.id, active: !rule.active })}
-                      title={rule.active ? "غیرفعال کردن" : "فعال کردن"}
-                      className={`p-1.5 rounded-lg border transition ${
-                        rule.active
-                          ? "border-primary/20 text-primary hover:bg-primary/10"
-                          : "border-muted text-muted-foreground hover:bg-muted"
-                      }`}
+                      className={rule.active ? "text-primary" : "text-muted-foreground"}
                     >
-                      {rule.active ? <CheckCircle className="size-4" /> : <XCircle className="size-4" />}
-                    </button>
-
-                    {/* دکمه حذف */}
-                    <button
-                      type="button"
+                      {rule.active ? <CheckCircle className="size-5" /> : <XCircle className="size-5" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => {
-                        if (confirm("آیا از حذف این قانون مطمئن هستید؟")) {
+                        if (confirm("Are you sure you want to delete this rule?")) {
                           deleteMutation.mutate(rule.id);
                         }
                       }}
-                      className="p-1.5 rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10 transition"
-                      title="حذف قانون"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 className="size-4" />
-                    </button>
+                      <Trash2 className="size-5" />
+                    </Button>
                   </div>
                 </div>
               ))}
