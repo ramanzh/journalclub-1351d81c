@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Plus, Trash2, CheckCircle, XCircle } from "lucide-react";
 import type { TradingRule } from "@/lib/trade-utils";
 
@@ -26,7 +25,6 @@ const toPersianDigits = (num: number | string | null | undefined) => {
 
 function RulesPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [title, setTitle] = useState("");
@@ -62,12 +60,8 @@ function RulesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
-      toast({ title: "قانون جدید با موفقیت ثبت شد." });
       setTitle("");
       setDescription("");
-    },
-    onError: () => {
-      toast({ title: "خطا در ثبت قانون", variant: "destructive" });
     },
   });
 
@@ -79,7 +73,6 @@ function RulesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trading_rules"] });
-      toast({ title: "قانون مورد نظر حذف شد." });
     },
   });
 
