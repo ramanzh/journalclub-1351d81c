@@ -83,19 +83,25 @@ function AnalyticsPage() {
     enabled: !!user,
   });
 
-  const trades = tradesQ.data ?? [];
+  const allTrades = tradesQ.data ?? [];
   const accounts = accountsQ.data ?? [];
   const items = checklistQ.data ?? [];
   const rules = rulesQ.data ?? [];
   const loading = tradesQ.isLoading || accountsQ.isLoading || checklistQ.isLoading || rulesQ.isLoading;
 
-  const setups  = useMemo(() => setupStats(trades, accounts), [trades, accounts]);
-  const sessions = useMemo(() => sessionStats(trades, accounts), [trades, accounts]);
-  const emoB   = useMemo(() => emotionStats(trades, "before"), [trades]);
-  const emoA   = useMemo(() => emotionStats(trades, "after"), [trades]);
-  const chk    = useMemo(() => checklistStats(trades, items), [trades, items]);
-  const qual   = useMemo(() => qualityStats(trades, accounts), [trades, accounts]);
-  const rs     = useMemo(() => ruleStats(trades, rules), [trades, rules]);
+  // ✅ فیلتر کردن معاملات: فقط معاملاتی که بسته شده‌اند (قیمت خروج دارند و صفر نیستند) وارد محاسبات آنالیز می‌شوند
+  const closedTrades = useMemo(() => {
+    return allTrades.filter((t) => t.exit_price !== null && t.exit_price !== 0);
+  }, [allTrades]);
+
+  // تغذیه توابع محاسباتی با معاملات بسته شده (closedTrades)
+  const setups  = useMemo(() => setupStats(closedTrades, accounts), [closedTrades, accounts]);
+  const sessions = useMemo(() => sessionStats(closedTrades, accounts), [closedTrades, accounts]);
+  const emoB   = useMemo(() => emotionStats(closedTrades, "before"), [closedTrades]);
+  const emoA   = useMemo(() => emotionStats(closedTrades, "after"), [closedTrades]);
+  const chk    = useMemo(() => checklistStats(closedTrades, items), [closedTrades, items]);
+  const qual   = useMemo(() => qualityStats(closedTrades, accounts), [closedTrades, accounts]);
+  const rs     = useMemo(() => ruleStats(closedTrades, rules), [closedTrades, rules]);
 
   if (loading) {
     return (
@@ -290,7 +296,7 @@ function AnalyticsPage() {
             <Stat label="قوانین رعایت‌شده" value={fPct(rs.followedPct, 0)} positive />
             <Stat label="قوانین نقض‌شده" value={fPct(rs.brokenPct, 0)} negative />
           </div>
-          <Card title="آمار به‌تفکیک قانون">
+          <Card title="ممارست به‌تفکیک قانون">
             <Table
               head={["قانون", "تعداد نقض", "تعداد رعایت"]}
               rows={rs.perRule.map((p) => [
